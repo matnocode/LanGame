@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading.Tasks; 
 
 namespace ConsoleEngine
 {
@@ -12,7 +14,7 @@ namespace ConsoleEngine
         public GameManager()
         {
             LoadUserName();
-            currentGameState = GameState.loadingscreen0;
+            currentGameState = GameState.mainmenu;
             Border = new Vector2(2, 1);//offsets
             SetUpOptions();
             //SetUpBorder();
@@ -20,7 +22,7 @@ namespace ConsoleEngine
             EngineControl.engine.BeforeLoop += LevelLogic;
             controls.OnInputDetected += ControlManager;
             OnGameStateChange += SetUpLevel;
-            
+
         }
         //create event delegate for setting levels
         public delegate void LevelDelegate();
@@ -31,22 +33,22 @@ namespace ConsoleEngine
         public enum GameState
         {
             mainmenu, loadingscreen0, pausemenu, ingame, loadingscreen1,
-            searchgame
+            searchgame, createGame
         }
-        public enum GameType 
+        public enum GameType
         {
-            lan,ai
+            lan, ai
         }
-        enum UIElement {connectivity,username }
+        enum UIElement { connectivity, username }
         enum OptionType
         {
-            mainmenu, userCreation, searchGame
+            mainmenu, inputTaker, searchGame, createGame
         }
         Dictionary<OptionType, Option[]> options = new Dictionary<OptionType, Option[]>();
 
         GameState currentGameState;
-        GameType currentGameType;
-        
+        //GameType currentGameType;
+
         OptionType currentOptionType;
         Graphics graphics = EngineControl.graphics;
         Controls controls = EngineControl.controls;
@@ -71,6 +73,28 @@ namespace ConsoleEngine
         //Level Specific variables-------------------
         DateTime Loading0ScreenStartTime = new DateTime();
         DateTime Loading1ScreenStartTime = new DateTime();
+        private bool _sentRequest;
+        bool SentRequest { get => _sentRequest;  set
+            {
+                _sentRequest = value;
+                if (options.ContainsKey(OptionType.createGame) == true)
+                { options.Remove(OptionType.createGame); }
+
+                int nextPos = 0;
+                List<Option> tempOptArr = new List<Option>();
+              
+
+                tempOptArr.Add(new Option("Enter IP address for the game: (Press enter here)---> ", nextPos));
+                nextPos++;
+                tempOptArr.Add(new Option("Back", nextPos));
+                backOptionPos = nextPos;
+                nextPos++;
+                if (!_sentRequest)               
+                    tempOptArr.Add(new Option("No Game Found", nextPos));
+                
+                options.Add(OptionType.createGame, tempOptArr.ToArray());
+           
+            } }
 
         GameObject map;
 
@@ -79,47 +103,51 @@ namespace ConsoleEngine
 
         struct Option
         {
-            public Option(string val, int pos, Vector2 wp)
+            public Option(string val, int pos, Vector2 wp, string[] args = null)
             {
                 value = val;
                 position = pos;
                 worldPosition = wp;
+                this.args = args;
             }
-            public Option(string val, int pos)
+            public Option(string val, int pos, string[] args = null)
             {
                 value = val;
                 position = pos;
                 worldPosition = new Vector2(0, 0);
+                this.args = args;
             }
             public string value;
             public int position;
             public Vector2 worldPosition;
+            public string[] args;
 
         }
-      
+
 
         public void SetGameState(GameState state)
         {
             currentGameState = state;
             OnGameStateChange?.Invoke();
         }
-        void SetUpLevel()   
+        void SetUpLevel()
         {
             graphics.ClearWorld();
-          
+            SetUpOptions();
+
             if (currentGameState == GameState.mainmenu)
             {
-                if (currentOptionType == OptionType.userCreation) 
+                if (currentOptionType == OptionType.inputTaker)
                 {
                     SetUpOptionScreen(10, 2);
                 }
-                else 
+                else
                 {
                     currentOptionType = OptionType.mainmenu;
                     SetUpOptionScreen(10, 2);
 
                     //var name = new GameObject(new FileStream("Assets/enginename.cea", FileMode.Open, FileAccess.Read), "enginename", new Vector2(0, 0));
-                    var logo = new GameObject(new FileStream("Assets/robot_0.cea", FileMode.Open, FileAccess.Read), "logo", new Vector2(0, 0));
+                    var logo = new GameObject(new FileStream("Assets/logo.cea", FileMode.Open, FileAccess.Read), "logo", new Vector2(0, 0));
                     var name = new GameObject(new FileStream("Assets/gamename.cea", FileMode.Open, FileAccess.Read), "logo", new Vector2(0, 0));
 
                     name.Move(AlignAtCenter(name.GetWidth(), 1));
@@ -133,25 +161,31 @@ namespace ConsoleEngine
             else if (currentGameState == GameState.loadingscreen0)
             {
                 Loading0ScreenStartTime = DateTime.Now;
-                var Load0 = new GameObject(new FileStream("Assets/name.cea", FileMode.Open,FileAccess.Read), "load0",new Vector2(0,0));
+                var Load0 = new GameObject(new FileStream("Assets/name.cea", FileMode.Open, FileAccess.Read), "load0", new Vector2(0, 0));
                 Load0.Move(AlignAtCenter(Load0.GetWidth(), 1));
             }
             else if (currentGameState == GameState.loadingscreen1)
             {
                 Loading1ScreenStartTime = DateTime.Now;
-                var Load1 = new GameObject(new FileStream("Assets/name1.cea", FileMode.Open, FileAccess.Read), "load1",new Vector2(0,0));
+                var Load1 = new GameObject(new FileStream("Assets/name1.cea", FileMode.Open, FileAccess.Read), "load1", new Vector2(0, 0));
                 //Load1.Move(new Vector2(GetScreenCenter().x - (Load1.GetWidth() / 2), 2));
                 Load1.Move(AlignAtCenter(Load1.GetWidth(), 1));
             }
-   
+
             else if (currentGameState == GameState.ingame)
             {
-                
+
             }
             else if (currentGameState == GameState.searchgame)
             {
-                SetUpOptionScreen(10, 2);
+                //to do: looks for games in bg, when done looking for games call callback function to set up what found, otherwise keep array null
+                SetUpOptionScreen(4, 2);
                 GetAvailableGames();
+                SetUpOptionScreen(4, 2);
+            }
+            else if (currentGameState == GameState.createGame)
+            {
+                backOptionPos = 1;
                 SetUpOptionScreen(10, 2);
             }
         }
@@ -190,7 +224,7 @@ namespace ConsoleEngine
             }
 
             //Username
-            {   
+            {
                 sb = new StringBuilder("Hello, ");
                 defaultPos = AlignAtEnd(sb.ToString() + _username, 1);
                 bc = ConsoleColor.Yellow;
@@ -210,9 +244,9 @@ namespace ConsoleEngine
                     graphics.AddPoint(new Graphics.PointData(new Vector2(defaultPos.x + i, defaultPos.y), sb[i].ToString(), bc, fc));
                 }
             }
-            
+
             //adds score
-            if(currentGameState == GameState.ingame) 
+            if (currentGameState == GameState.ingame)
             {
                 sb = new StringBuilder($"{_username} : {_playerScore} - {_opponentScore}:{_opponentname}");
                 defaultPos = AlignAtCenter(sb.ToString(), 1);
@@ -230,7 +264,7 @@ namespace ConsoleEngine
             if (currentGameState == GameState.loadingscreen0)
             {
                 //change back to 3
-                if (DateTime.Now.Subtract(Loading0ScreenStartTime).Seconds > 0)
+                if (DateTime.Now.Subtract(Loading0ScreenStartTime).Seconds > 2)
                 {
                     SetGameState(GameState.loadingscreen1);
                 }
@@ -238,19 +272,24 @@ namespace ConsoleEngine
             else if (currentGameState == GameState.loadingscreen1)
             {
                 //change back to 3
-                if (DateTime.Now.Subtract(Loading1ScreenStartTime).Seconds > 0)
+                if (DateTime.Now.Subtract(Loading1ScreenStartTime).Seconds > 2)
                 {
                     SetGameState(GameState.mainmenu);
                 }
             }
-            else if (currentGameState == GameState.ingame) 
+            else if (currentGameState == GameState.ingame)
             {
-          
+
             }
         }
         //call when chaging options
         void SetMaxPos()
         {
+            var fs = File.Open("log.txt", FileMode.OpenOrCreate);
+            fs.Write(ASCIIEncoding.ASCII.GetBytes($"{options.ContainsKey(OptionType.searchGame)}"));
+            fs.Flush();
+            fs.Close();
+
             int max = 0;
             for (int i = 0; i < options[currentOptionType].Length; i++)
             {
@@ -273,8 +312,8 @@ namespace ConsoleEngine
                 temp = AlignAtCenter(optarr[i].value, temp.y);
                 optarr[i].worldPosition = temp;
                 if (i == 0)
-                {            
-                    graphics.AddPoint(new Graphics.PointData(temp, optarr[i].value,defaultSelectionColor));
+                {
+                    graphics.AddPoint(new Graphics.PointData(temp, optarr[i].value, defaultSelectionColor));
                 }
                 else
                     graphics.AddPoint(new Graphics.PointData(temp, optarr[i].value));
@@ -298,7 +337,7 @@ namespace ConsoleEngine
             });
 
             //user creation options
-            options.Add(OptionType.userCreation, new Option[]
+            options.Add(OptionType.inputTaker, new Option[]
             {
                     new Option("Enter Username", 0),
                     new Option("(Press enter)",1)
@@ -307,19 +346,24 @@ namespace ConsoleEngine
             {
                     new Option("Searching For Game...", 0),
             });
+            options.Add(OptionType.createGame, new Option[]
+           {
+                    new Option("Enter IP address for the game: (Press enter here)---> ", 0),
+                    new Option("Back", 1),
+           });
 
 
         }
-   
-        Vector2 AlignAtCenter(int maxlength, int yoffset) 
+
+        Vector2 AlignAtCenter(int maxlength, int yoffset)
         {
-            return new Vector2(graphics.GetConsoleWidth() / 2  - (maxlength / 2), yoffset);
+            return new Vector2(graphics.GetConsoleWidth() / 2 - (maxlength / 2), yoffset);
         }
         Vector2 AlignAtCenter(string input, int y)
         {
             return new Vector2(graphics.GetConsoleWidth() / 2 - (input.Length / 2), y);
         }
-        Vector2 AlignAtEnd(string input, int y) 
+        Vector2 AlignAtEnd(string input, int y)
         {
             return new Vector2(graphics.GetConsoleWidth() - input.Length, y);
         }
@@ -329,7 +373,7 @@ namespace ConsoleEngine
         }
         void ControlManager(ConsoleKeyInfo key)
         {
-            if (currentGameState == GameState.mainmenu)
+            if (currentGameState != GameState.ingame)
             {
                 if (key.Key == ConsoleKey.UpArrow)
                 {
@@ -348,7 +392,10 @@ namespace ConsoleEngine
                         ctrlpos++;
                     }
                 }
-
+            }
+                
+            if (currentGameState == GameState.mainmenu)
+            {             
                 if (currentOptionType == OptionType.mainmenu)
                 {
                     if (key.Key == ConsoleKey.Enter)
@@ -356,7 +403,7 @@ namespace ConsoleEngine
                         //checking if need to create new user
                         if (_username == "" && ctrlpos != 3)
                         {
-                            currentOptionType = OptionType.userCreation;
+                            currentOptionType = OptionType.inputTaker;
                             SetUpLevel();
 
                         }
@@ -365,6 +412,7 @@ namespace ConsoleEngine
                             //join game
                             if (ctrlpos == 0)
                             {
+                              
                                 currentGameState = GameState.searchgame;
                                 currentOptionType = OptionType.searchGame;
                                 SetUpLevel();
@@ -372,7 +420,9 @@ namespace ConsoleEngine
                             //create server
                             else if (ctrlpos == 1)
                             {
-
+                                currentGameState = GameState.createGame;
+                                currentOptionType = OptionType.createGame;
+                                SetUpLevel();
 
                             }
                             //vs ai
@@ -389,24 +439,7 @@ namespace ConsoleEngine
                 }
                 else
                 {
-                    if (key.Key == ConsoleKey.UpArrow)
-                    {
-
-                        if (ctrlpos > 0)
-                        {
-                            ChangeOptionSelection(-1, defaultSelectionColor);
-                            ctrlpos--;
-                        }
-                    }
-                    else if (key.Key == ConsoleKey.DownArrow)
-                    {
-                        if (ctrlpos < maxpos)
-                        {
-                            ChangeOptionSelection(1, defaultSelectionColor);
-                            ctrlpos++;
-                        }
-                    }
-                    else if (key.Key == ConsoleKey.Enter)
+                    if (key.Key == ConsoleKey.Enter)
                     {
                         //inputs name
                         if (ctrlpos == 1)
@@ -420,27 +453,8 @@ namespace ConsoleEngine
                 }
             }
             else if (currentGameState == GameState.searchgame) 
-            {
-                //dsiplay available games
-
-                if (key.Key == ConsoleKey.UpArrow)
-                {
-
-                    if (ctrlpos > 0)
-                    {
-                        ChangeOptionSelection(-1, defaultSelectionColor);
-                        ctrlpos--;
-                    }
-                }
-                else if (key.Key == ConsoleKey.DownArrow)
-                {
-                    if (ctrlpos < maxpos)
-                    {
-                        ChangeOptionSelection(1, defaultSelectionColor);
-                        ctrlpos++;
-                    }
-                }
-                else if(key.Key == ConsoleKey.Enter) 
+            {        
+                if(key.Key == ConsoleKey.Enter) 
                 {
                     if(ctrlpos == backOptionPos)
                     {
@@ -448,7 +462,47 @@ namespace ConsoleEngine
                         currentOptionType = OptionType.mainmenu;
                         SetUpLevel();
                     }
+                    //pressed enter for available game
+                    if( ctrlpos != 0 && ctrlpos < maxpos - 2) 
+                    {
+                        currentGameState = GameState.ingame;
+                        SetUpLevel();
+                    }
                 }
+            }
+            else if (currentGameState == GameState.createGame) 
+            {
+                if(currentOptionType == OptionType.inputTaker) 
+                {
+                    Console.SetCursorPosition(options[OptionType.createGame][0].worldPosition.x + options[OptionType.createGame][0].value.Length, options[OptionType.createGame][0].worldPosition.y);
+                    string str = Console.ReadLine();
+                    IPAddress ip;
+
+                    if (IPAddress.TryParse(str, out ip))
+                    {
+                        SentRequest = EngineControl.lanNetwork.SendConRequest(ip);
+                    }
+                    currentOptionType = OptionType.createGame;
+                    SetUpOptionScreen(10,2);
+                }
+                else 
+                {
+                    if (key.Key == ConsoleKey.Enter)
+                    {
+                        if (ctrlpos == backOptionPos)
+                        {
+                            currentGameState = GameState.mainmenu;
+                            currentOptionType = OptionType.mainmenu;
+                            SetUpLevel();
+                        }
+                        //enters ip address
+                        else if (ctrlpos == 0)
+                        {
+                            currentOptionType = OptionType.inputTaker;
+
+                        }
+                    }
+                }              
             }
         }
 
@@ -469,38 +523,61 @@ namespace ConsoleEngine
         }
         public void GetAvailableGames()
         {
-            LanNetwork.Info[] gameList;
+            
             //set up new option screen with list of available games
             //get list of games from server
-            if (EngineControl.lanNetwork.listOfGames != null)
-                gameList = EngineControl.lanNetwork.listOfGames.ToArray();
-            else gameList = EngineControl.lanNetwork.GetListOfAvailableGames();
-           
-            if (gameList != null) 
+            var gameList = EngineControl.lanNetwork.listOfGames;
+
+            if (gameList.Count > 0) 
             {
                 if (options.ContainsKey(OptionType.searchGame) == true)
                 { options.Remove(OptionType.searchGame); }
 
-               
-                    Option[] tempOptArr = new Option[gameList.Length];
-                    for (int i = 0; i < gameList.Length; i++)
-                    {
-                        tempOptArr[i] = new Option($"{gameList[i].username} : {gameList[i].ip}", i);
-                    }
-                
+
+                List<Option> tempOptArr = new List<Option>();
+                int nextPos = 0;
+                tempOptArr.Add(new Option("Games Found:", nextPos));
+                nextPos++;
+
+
+                for (int i = 0; i < gameList.Count;i++)
+                {                                    
+                    tempOptArr.Add(new Option($"{gameList[i].username} : {gameList[i].ip}", nextPos,new string[] {i.ToString()}));
+                    nextPos++;
+          
+                }
+                tempOptArr.Add(new Option("Try again", nextPos));
+                nextPos++;
+                tempOptArr.Add(new Option("Back", nextPos));
+                backOptionPos = nextPos;
+                nextPos++;
+                options.Add(OptionType.searchGame, tempOptArr.ToArray());
             }
 
             else
             {
                 if (options.ContainsKey(OptionType.searchGame) == true)
                 { options.Remove(OptionType.searchGame); }
-                
-                options.Add(OptionType.searchGame, new Option[] {
-                    new Option("No Games Found",0),
-                    new Option("Try again",1),
+
+                if (EngineControl.lanNetwork.SearchGames())
+                {
+
+                    options.Add(OptionType.searchGame, new Option[] {
+                    new Option("Searching...",0),
+                    new Option("Enter IP Manually",1),
                     new Option("Back",2)
                     });
-                backOptionPos = 2;
+                    backOptionPos = 2;
+                }
+                else 
+                {
+                    options.Add(OptionType.searchGame, new Option[] {
+                    new Option("No Games Found",0),
+                    new Option("Enter IP Manually",1),
+                    new Option("Back",2)
+                    });
+                    backOptionPos = 2;
+                }
                 
             }
         }

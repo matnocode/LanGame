@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Threading;
 namespace ConsoleEngine
 {
@@ -38,6 +39,34 @@ namespace ConsoleEngine
         {
             loop = false;
             EngineControl.controls.LookForInput = false;
+        }
+
+        public FileStream GetFile(string fileNamePathName, bool create=false) 
+        {
+            //opens or creates file from root
+            if (create)
+                return File.Open(fileNamePathName, FileMode.OpenOrCreate);
+           
+            else
+            {
+                //opens a specific file from root or from assets if not found returns null
+                try
+                {
+                    return File.Open(fileNamePathName, FileMode.Open);
+                }
+                catch (Exception)
+                {
+                    try 
+                    {
+                        return File.Open("assets\\"+fileNamePathName, FileMode.Open);                      
+                    }
+                    catch (Exception) 
+                    { 
+                       return null;//not found
+                    }             
+                }
+            }
+           
         }
     
     }

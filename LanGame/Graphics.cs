@@ -25,6 +25,7 @@ namespace ConsoleEngine
             SetConsoleRes(RenderResolution);
             RenderPoints = new List<PointData>(RenderResolution.x * RenderResolution.y);
             ResetConsoleBuffer();
+            Console.ResetColor();
 
 
             Console.CursorVisible = false;
@@ -97,6 +98,7 @@ namespace ConsoleEngine
         List<PointData> RenderPoints;
         public void Render()
         {
+            Console.ResetColor();
             //world position has to be less than or equal to render resolution + camera offset
             for (int i =  0; i < WorldPoints.Count; i++)
             {
