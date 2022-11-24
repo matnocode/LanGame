@@ -15,7 +15,7 @@ namespace ConsoleEngine
         {
             _opponentname = "bot1";
             LoadUserName();
-            currentGameState = GameState.mainmenu;
+            currentGameState = GameState.ingame;
             Border = new Vector2(2, 1);//offsets
             SetUpOptions();
             //SetUpBorder();
@@ -398,7 +398,7 @@ namespace ConsoleEngine
             });
             options.Add(OptionType.searchGame, new Option[]
             {
-                    new Option("Searching For Game...", 0)
+                    new Option("Searching For Games...", 0)
             });
             options.Add(OptionType.createGame, new Option[]
            {
@@ -583,7 +583,8 @@ namespace ConsoleEngine
         }
         public void GetAvailableGames()
         {
-            
+            EngineControl.lanNetwork.SearchGames();
+
             //set up new option screen with list of available games
             //get list of games from server
             var gameList = EngineControl.lanNetwork.listOfGames;
@@ -619,26 +620,13 @@ namespace ConsoleEngine
                 if (options.ContainsKey(OptionType.searchGame) == true)
                 { options.Remove(OptionType.searchGame); }
 
-                if (EngineControl.lanNetwork.SearchGames())
-                {
-
-                    options.Add(OptionType.searchGame, new Option[] {
-                    new Option("Searching...",0),
-                    new Option("Enter IP Manually",1),
-                    new Option("Back",2)
-                    });
-                    backOptionPos = 2;
-                }
-                else 
-                {
-                    options.Add(OptionType.searchGame, new Option[] {
-                    new Option("No Games Found",0),
-                    new Option("Enter IP Manually",1),
-                    new Option("Back",2)
-                    });
-                    backOptionPos = 2;
-                }
-                
+                options.Add(OptionType.searchGame, new Option[] {
+                        new Option("No Games Found",0),
+                        new Option("Enter IP Manually",1),
+                        new Option("Back",2)
+                        });
+                backOptionPos = 2;
+                              
             }
         }
         public void ChangeOptionSelection(int change ,ConsoleColor color)

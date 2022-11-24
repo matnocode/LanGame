@@ -65,6 +65,8 @@ namespace ConsoleEngine
         public Dictionary<IPAddress, Info> ReceivedData = new Dictionary<IPAddress, Info>();
 
         //has connection in a local network //ping to default gateway
+        
+        //fix
         public static Info GetDataFromQuery(string uriString)
         {
             Uri uri = new Uri(uriString);
@@ -106,18 +108,22 @@ namespace ConsoleEngine
                 } while (receivedData > 0);
 
                 Uri uri = new Uri(sb.ToString());
-                log.WriteLine(sb.ToString());
-                if (uri.Scheme == "conRequest")
+                log.WriteLine(uri.Scheme);
+                log.Flush();
+                if (uri.Scheme == "conrequest")
                 {
+                    log.WriteLine(" ADDED TO LIST ");
+                    log.Flush();
                     if (ReceivedData.ContainsKey(Dns.GetHostAddresses(uri.Host)[0]))
                         ReceivedData.Remove(Dns.GetHostAddresses(uri.Host)[0]);
                     Info info = GetDataFromQuery(sb.ToString());
                   
                     ReceivedData.Add(Dns.GetHostAddresses(uri.Host)[0], info);
-
+                    listOfGames.Add(info);
                 }
             }
         }
+        //fix
         public static bool HasConnection()
         {
             IPAddress dg = NetworkInterface
@@ -156,8 +162,8 @@ namespace ConsoleEngine
         {
             if (HasConnection())
             {
-                log.WriteLine("Getting Games");
-                log.Flush();
+                //log.WriteLine("Getting Games");
+                //log.Flush();
                // StreamWriter log = new StreamWriter("log1.txt");
 
 
@@ -193,33 +199,15 @@ namespace ConsoleEngine
                     //get ip string
                     string ip = hostIp.ToString().Remove(hostIp.ToString().Length - (hostIp.ToString().Length - thirdDotPos));
                     ip += i.ToString();
-                    log.Write(ip+"\n");
-                    log.Flush();
+                    //log.Write(ip+"\n");
+                    //log.Flush();
                     SendConRequest(IPAddress.Parse(ip));
 
                 }
-                if (Thread.CurrentThread.ManagedThreadId == getGamesId)
-                    return;
 
             }
        
-        }
-        public void searchGame(IPAddress ip)
-        {
-            Ping ping = new Ping();
-            var reply = ping.Send(ip, 1000);
-            
-            foreach(var game in listOfGames)
-            {
-                if(game.isEmpty() != false) 
-                {
-                    if (game.ip == ip)
-                        return;
-                }               
-            }
-            //send con request
-
-        }
+        }     
         // got reply from conrequest
         Info PingCompletedCallback(PingReply reply) 
         {
@@ -232,14 +220,14 @@ namespace ConsoleEngine
         {
             try
             {
-                log.WriteLine("Sending Con req with ip: " + ip.ToString());
-                log.Flush();
+                //log.WriteLine("Sending Con req with ip: " + ip.ToString());
+                //log.Flush();
                 Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 IPEndPoint ipe = new IPEndPoint(ip, schemePorts[SchemeTypes.conrequest]);
                 socket.Bind(ipe);
                 socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conrequest, ip)));
-                log.WriteLine("Sent Con req!");
-                log.Flush();
+                //log.WriteLine("Sent Con req!");
+                //log.Flush();
                 return true;
             }
             catch
