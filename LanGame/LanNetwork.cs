@@ -18,6 +18,7 @@ namespace ConsoleEngine
         public delegate void GameListHandler();
         public event GameListHandler OnGameListChange;
         ThreadStart getGamesThreadStart;
+        int getGamesId;
         Thread getGamesThread;
 
         public LanNetwork()
@@ -27,8 +28,10 @@ namespace ConsoleEngine
             ThreadStart listenThreadStart = new ThreadStart(Listen);
 
             getGamesThread = new Thread(getGamesThreadStart);
+            getGamesId = getGamesThread.ManagedThreadId;
             Thread listenThread = new Thread(listenThreadStart);
             getGamesThread.Start();
+            listenThread.Start();
             
         }
         public static readonly Dictionary<SchemeTypes, int> schemePorts = new Dictionary<SchemeTypes, int>()
@@ -109,13 +112,15 @@ namespace ConsoleEngine
                 } while (receivedData > 0);
 
                 Uri uri = new Uri(sb.ToString());
-
+                log.WriteLine(sb.ToString());
                 if (uri.Scheme == "conRequest")
                 {
                     if (ReceivedData.ContainsKey(Dns.GetHostAddresses(uri.Host)[0]))
                         ReceivedData.Remove(Dns.GetHostAddresses(uri.Host)[0]);
                     Info info = GetDataFromQuery(sb.ToString());
+                  
                     ReceivedData.Add(Dns.GetHostAddresses(uri.Host)[0], info);
+
                 }
             }
         }
@@ -197,24 +202,18 @@ namespace ConsoleEngine
 
                 }
 
-                for (int i = 237; i < 241; i++)//set i to 1
+                for (int i = 1; i < 255; i++)//set i to 1
                 {
                     //get ip string
                     string ip = hostIp.ToString().Remove(hostIp.ToString().Length - (hostIp.ToString().Length - thirdDotPos));
                     ip += i.ToString();
                     log.Write(ip+"\n");
                     log.Flush();
-                    var reply = SendPing(IPAddress.Parse(ip));
-                    Info info = PingCompletedCallback(reply);
-                    if(info.isEmpty() == false) 
-                    {
-                        //move to listen and add only from there
-                        infos.Add(info);
-                    }
+                    SendConRequest(IPAddress.Parse(ip));
 
                 }
-
-                listOfGames = infos;
+                if (Thread.CurrentThread.ManagedThreadId == getGamesId)
+                    return;
 
             }
        
@@ -235,14 +234,7 @@ namespace ConsoleEngine
             //send con request
 
         }
-         PingReply SendPing(IPAddress ip) 
-        {
-            Ping ping = new Ping();
-            var reply = ping.Send(ip,1000);
-            return reply;
-        
-        }
-
+        // got reply from conrequest
         Info PingCompletedCallback(PingReply reply) 
         {
             if(reply.Status == IPStatus.Success)
