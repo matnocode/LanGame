@@ -13,6 +13,7 @@ namespace ConsoleEngine
     {
         public GameManager()
         {
+            _opponentname = "bot1";
             LoadUserName();
             currentGameState = GameState.mainmenu;
             Border = new Vector2(2, 1);//offsets
@@ -22,7 +23,7 @@ namespace ConsoleEngine
             EngineControl.engine.BeforeLoop += LevelLogic;
             controls.OnInputDetected += ControlManager;
             OnGameStateChange += SetUpLevel;
-
+        ;
         }
         //create event delegate for setting levels
         public delegate void LevelDelegate();
@@ -42,7 +43,8 @@ namespace ConsoleEngine
         enum UIElement { connectivity, username }
         enum OptionType
         {
-            mainmenu, inputTaker, searchGame, createGame
+            mainmenu, inputTaker, searchGame, createGame,
+            ingame
         }
         Dictionary<OptionType, Option[]> options = new Dictionary<OptionType, Option[]>();
 
@@ -63,8 +65,12 @@ namespace ConsoleEngine
         public int OpponentScore { get => _opponentScore; set { _opponentScore = value; SetUpUI(); } }
         public static string gamename = "LanNumberGuessr";
         private string _username = "";
+
+        bool opponentReveal;
+        bool playerReveal;
+
         public string Username { get => _username; set { _username = value; SetUpUI(); } }
-        public string _opponentname = "";
+        public string _opponentname;
         public string OpponentName { get => _opponentname; set { _opponentname = value; SetUpUI(); } }
         Dictionary<UIElement, Vector2> UIElementPositions;
         int backOptionPos = 0;//back option postion in option
@@ -95,6 +101,10 @@ namespace ConsoleEngine
                 options.Add(OptionType.createGame, tempOptArr.ToArray());
            
             } }
+
+        int _generatedNumber;//3 decimal places
+        string GeneratedNumber;
+        
 
         GameObject map;
 
@@ -174,7 +184,51 @@ namespace ConsoleEngine
 
             else if (currentGameState == GameState.ingame)
             {
+                GeneratedNumber = "???";//3 decimals
+                currentOptionType = OptionType.ingame;
 
+                //opponents values
+                string opponentVals = _opponentname + " : " + _opponentScore;
+                //slightly less than center
+                Vector2 oPos = new Vector2(AlignAtCenter(opponentVals, 0).x / 4, 1);
+                
+                //players values
+                string playerVals = Username + " : " + _playerScore;
+                Vector2 pPos = new Vector2(AlignAtCenter(playerVals, 0).x / 4, 3);
+
+                //num to guess values
+                string numToGuessVals =  "Number to guess: "+GeneratedNumber ;
+                Vector2 ntgPos = new Vector2(AlignAtCenter(numToGuessVals, 0).x /4, 5);
+
+                //offer values //move to options
+                string offer = $"Offer {_opponentname} to reveal a decimal place";
+                Vector2 ofPos = new Vector2(AlignAtCenter(offer, 0).x / 4, 9);
+        
+
+                //reveal acceptions
+                string revealVal = $"{Username}---->[{GetRevealString(Username)}]    [{GetRevealString(Username)}]<----{_opponentname}";
+                Vector2 rPos = new Vector2(AlignAtCenter(offer, 0).x / 4, graphics.GetConsoleHeight() - 2);
+
+                //reveal acceptions
+                string revealAskVal = "Reveal Acceptions:";
+                Vector2 raPos = new Vector2((AlignAtCenter(offer, 0).x / 4) + revealVal.Length/4, graphics.GetConsoleHeight() - 3);
+
+                //robot on side
+                var sideArt = new GameObject(new FileStream("Assets/sideArt.cea", FileMode.Open, FileAccess.Read), "sideArt",new Vector2());
+                sideArt.Move(new Vector2(
+                    AlignAtCenter(sideArt.GetWidth(), 0).x + (AlignAtCenter(sideArt.GetWidth(), 0).x /2),
+                    1)) ;
+
+                //render
+                graphics.AddPoint(new Graphics.PointData(oPos, opponentVals));
+                graphics.AddPoint(new Graphics.PointData(pPos, playerVals));
+                graphics.AddPoint(new Graphics.PointData(ntgPos, numToGuessVals));
+                graphics.AddPoint(new Graphics.PointData(raPos, revealAskVal));
+                graphics.AddPoint(new Graphics.PointData(rPos, revealVal));
+                sideArt.RenderGameObject();
+
+                //set up options
+                SetUpOptionScreen(graphics.GetConsoleHeight() - 8,1);
             }
             else if (currentGameState == GameState.searchgame)
             {
@@ -344,13 +398,19 @@ namespace ConsoleEngine
             });
             options.Add(OptionType.searchGame, new Option[]
             {
-                    new Option("Searching For Game...", 0),
+                    new Option("Searching For Game...", 0)
             });
             options.Add(OptionType.createGame, new Option[]
            {
                     new Option("Enter IP address for the game: (Press enter here)---> ", 0),
-                    new Option("Back", 1),
+                    new Option("Back", 1)
            });
+            options.Add(OptionType.ingame, new Option[]
+         {
+                    new Option($"Offer {_opponentname} to reveal a decimal place", 0),
+                    new Option("Enter Your Guess --->", 1),
+                    new Option("EXIT", 2)
+         });
 
 
         }
@@ -617,6 +677,32 @@ namespace ConsoleEngine
                 key == ConsoleKey.D0)
                 return true;
             return false;
+        }
+
+        //decimal place reversed, from higher to lower: 3rd = 1 0 0<--
+        void Reveal(int decimalPlaceToReveal) 
+        {
+            //minus for indexes
+            decimalPlaceToReveal--;
+            char[] tempG = GeneratedNumber.ToCharArray();
+            tempG[decimalPlaceToReveal] = _generatedNumber.ToString()[decimalPlaceToReveal];
+            GeneratedNumber = tempG.ToString();
+           
+        }
+        string GetRevealString(string name)
+        {
+            if(name == Username)
+            {
+                if (playerReveal)
+                    return "V";
+                return "X";
+            } 
+            else 
+            {
+                if (opponentReveal)
+                    return "V";
+                return "X";
+            }
         }
 
     }
