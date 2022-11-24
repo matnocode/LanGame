@@ -17,20 +17,14 @@ namespace ConsoleEngine
         StreamWriter log = new StreamWriter("log1.txt");
         public delegate void GameListHandler();
         public event GameListHandler OnGameListChange;
-        ThreadStart getGamesThreadStart;
         int getGamesId;
-        Thread getGamesThread;
 
         public LanNetwork()
         {
             listOfGames = new List<Info>();
-            getGamesThreadStart = new ThreadStart(GetListOfAvailableGames);
             ThreadStart listenThreadStart = new ThreadStart(Listen);
 
-            getGamesThread = new Thread(getGamesThreadStart);
-            getGamesId = getGamesThread.ManagedThreadId;
             Thread listenThread = new Thread(listenThreadStart);
-            getGamesThread.Start();
             listenThread.Start();
             
         }
@@ -157,16 +151,8 @@ namespace ConsoleEngine
             }
             return "";
         }
-        public bool SearchGames() 
-        {
-            if (getGamesThread.IsAlive == false)
-            {
-                getGamesThread.Start();
-                return true;
-            }
-            return false;
-        }
-        void GetListOfAvailableGames()
+        
+        public void SearchGames()
         {
             if (HasConnection())
             {
