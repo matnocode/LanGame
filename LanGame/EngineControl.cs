@@ -9,6 +9,7 @@ namespace ConsoleEngine
         public static Graphics graphics;
         public static Controls controls;
         public static LanNetwork lanNetwork;
+        public static GameManager gameManager;
         static void Main(string[] args)
         {
             controls = new Controls();
@@ -26,7 +27,7 @@ namespace ConsoleEngine
             engine = new Engine();
             controls.initialize();
             graphics = new Graphics();
-            GameManager gm = new GameManager();
+            gameManager = new GameManager();
             
         }
     }

@@ -15,10 +15,8 @@ namespace ConsoleEngine
         {
             _opponentname = "bot1";
             LoadUserName();
-            currentGameState = GameState.ingame;
-            Border = new Vector2(2, 1);//offsets
-            SetUpOptions();
-            //SetUpBorder();
+            currentGameState = GameState.mainmenu;
+            //Border = new Vector2(2, 1);//offsets
             SetUpLevel();
             EngineControl.engine.BeforeLoop += LevelLogic;
             controls.OnInputDetected += ControlManager;
@@ -41,17 +39,17 @@ namespace ConsoleEngine
             lan, ai
         }
         enum UIElement { connectivity, username }
-        enum OptionType
+        public enum OptionType
         {
             mainmenu, inputTaker, searchGame, createGame,
             ingame
         }
         Dictionary<OptionType, Option[]> options = new Dictionary<OptionType, Option[]>();
 
-        GameState currentGameState;
+        public GameState currentGameState;
         //GameType currentGameType;
 
-        OptionType currentOptionType;
+        public OptionType currentOptionType;
         Graphics graphics = EngineControl.graphics;
         Controls controls = EngineControl.controls;
         Vector2 Border; // screen border
@@ -82,6 +80,7 @@ namespace ConsoleEngine
         private bool _sentRequest;
         bool SentRequest { get => _sentRequest;  set
             {
+                graphics.ClearWorld();
                 _sentRequest = value;
                 if (options.ContainsKey(OptionType.createGame) == true)
                 { options.Remove(OptionType.createGame); }
@@ -198,7 +197,7 @@ namespace ConsoleEngine
 
                 //num to guess values
                 string numToGuessVals =  "Number to guess: "+GeneratedNumber ;
-                Vector2 ntgPos = new Vector2(AlignAtCenter(numToGuessVals, 0).x /4, 5);
+                Vector2 ntgPos = new Vector2(AlignAtCenter(numToGuessVals, 0).x /4, 5);// x = screen width - (screen width /4)
 
                 //offer values //move to options
                 string offer = $"Offer {_opponentname} to reveal a decimal place";
@@ -225,7 +224,7 @@ namespace ConsoleEngine
                 graphics.AddPoint(new Graphics.PointData(ntgPos, numToGuessVals));
                 graphics.AddPoint(new Graphics.PointData(raPos, revealAskVal));
                 graphics.AddPoint(new Graphics.PointData(rPos, revealVal));
-                sideArt.RenderGameObject();
+                sideArt.RenderGameObject();;
 
                 //set up options
                 SetUpOptionScreen(graphics.GetConsoleHeight() - 8,1);
@@ -354,7 +353,7 @@ namespace ConsoleEngine
         }
         void SetUpOptionScreen(int Yoffset, int distance) //y distance b/w options
         {
-            graphics.ClearWorld();
+            //graphics.ClearWorld();
             SetMaxPos();//for options max pos
             ctrlpos = 0;
             var optarr = options[currentOptionType];
@@ -433,25 +432,27 @@ namespace ConsoleEngine
         }
         void ControlManager(ConsoleKeyInfo key)
         {
-            if (currentGameState != GameState.ingame)
+            //move options
+            if (key.Key == ConsoleKey.UpArrow)
             {
-                if (key.Key == ConsoleKey.UpArrow)
-                {
 
-                    if (ctrlpos > 0)
-                    {
-                        ChangeOptionSelection(-1, defaultSelectionColor);
-                        ctrlpos--;
-                    }
-                }
-                else if (key.Key == ConsoleKey.DownArrow)
+                if (ctrlpos > 0)
                 {
-                    if (ctrlpos < maxpos)
-                    {
-                        ChangeOptionSelection(1, defaultSelectionColor);
-                        ctrlpos++;
-                    }
+                    ChangeOptionSelection(-1, defaultSelectionColor);
+                    ctrlpos--;
                 }
+            }
+            else if (key.Key == ConsoleKey.DownArrow)
+            {
+                if (ctrlpos < maxpos)
+                {
+                    ChangeOptionSelection(1, defaultSelectionColor);
+                    ctrlpos++;
+                }
+            }
+            if (currentGameState == GameState.ingame)
+            {
+              
             }
                 
             if (currentGameState == GameState.mainmenu)
@@ -583,6 +584,7 @@ namespace ConsoleEngine
         }
         public void GetAvailableGames()
         {
+            
             EngineControl.lanNetwork.SearchGames();
 
             //set up new option screen with list of available games
@@ -591,6 +593,7 @@ namespace ConsoleEngine
 
             if (gameList.Count > 0) 
             {
+                graphics.ClearWorld();
                 if (options.ContainsKey(OptionType.searchGame) == true)
                 { options.Remove(OptionType.searchGame); }
 
@@ -617,6 +620,7 @@ namespace ConsoleEngine
 
             else
             {
+                graphics.ClearWorld();
                 if (options.ContainsKey(OptionType.searchGame) == true)
                 { options.Remove(OptionType.searchGame); }
 
