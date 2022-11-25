@@ -1,13 +1,12 @@
-﻿using System.Net;
-using System.Net.Sockets;
-using System.Net.NetworkInformation;
-using System.Linq;
-using System.Text;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading;
 
 namespace ConsoleEngine
 {
@@ -22,11 +21,14 @@ namespace ConsoleEngine
         public LanNetwork()
         {
             listOfGames = new List<Info>();
-            ThreadStart listenThreadStart = new ThreadStart(Listen);
+            ParameterizedThreadStart listenThreadStart = new ParameterizedThreadStart(Listen);
 
-            Thread listenThread = new Thread(listenThreadStart);
-            listenThread.Start();
-            
+            Thread conListenThread = new Thread(listenThreadStart);
+            Thread accListenThread = new Thread(listenThreadStart);
+            Thread dataListenThread = new Thread(listenThreadStart);
+            conListenThread.Start(SchemeTypes.conrequest);
+            accListenThread.Start(SchemeTypes.conaccept);
+            dataListenThread.Start(SchemeTypes.condata);
         }
         public static readonly Dictionary<SchemeTypes, int> schemePorts = new Dictionary<SchemeTypes, int>()
         {
@@ -40,9 +42,9 @@ namespace ConsoleEngine
         }
         public struct Info
         {
-            public static Info Empty() 
+            public static Info Empty()
             {
-                return new Info() { empty = true};
+                return new Info() { empty = true };
             }
             public Info(string uname, IPAddress ipp, int sc = 0, string que = "", bool rev = false)
             {
@@ -53,7 +55,7 @@ namespace ConsoleEngine
                 empty = false;
                 reveal = rev;
             }
-            public bool isEmpty() 
+            public bool isEmpty()
             {
                 return empty;
             }
@@ -69,8 +71,25 @@ namespace ConsoleEngine
         public Dictionary<IPAddress, Info> ReceivedData = new Dictionary<IPAddress, Info>();
 
         //has connection in a local network //ping to default gateway
-        
+
         //fix
+        static string GetValueFromQuery(string query, string dataName)
+        {
+            if (query.Contains(dataName))
+            {
+                string dataQuery = query.Substring(query.IndexOf(dataName));
+                if (dataQuery.Substring(dataQuery.IndexOf(dataName) + 1 + dataName.Length).Contains("&"))
+                {
+                    //+1 because of =
+                    return dataQuery.Substring(dataQuery.IndexOf(dataName) + 1 + dataName.Length, dataQuery.IndexOf("&", dataQuery.IndexOf(dataName)));
+                }
+                else
+                {
+                    return dataQuery.Substring(dataQuery.IndexOf(dataName) + 1 + dataName.Length);
+                }
+            }
+            return null;
+        }
         public static Info GetDataFromQuery(string uriString)
         {
             Uri uri = new Uri(uriString);
@@ -80,24 +99,23 @@ namespace ConsoleEngine
 
             info.ip = IPAddress.Parse(uri.Host);
             info.query = uri.Query;
-            if (query.Contains("username="))
-                info.username = query.Substring(query.IndexOf("username=") + 9, query.IndexOf('&', query.IndexOf("username=") + 9));
-            if (query.Contains("score="))
-                Int16.Parse(query.Substring(query.IndexOf("score=") + 6, query.IndexOf('&', query.IndexOf("score=") + 6)));
-            if (query.Contains("reveal="))
-                Int16.Parse(query.Substring(query.IndexOf("reveal=") + 7, query.IndexOf('&', query.IndexOf("reveal=") + 7)));
             
+            info.username = GetValueFromQuery(uri.Query, "username");
+            Int32.TryParse(GetValueFromQuery(uri.Query, "score"),out info.score);
+            Boolean.TryParse(GetValueFromQuery(uri.Query, "reveal"),out info.reveal);
+            
+
             return info;
         }
-        void Listen()
+        void Listen(object schemeType)
         {
             //listen from all ip sources
-
+            var type = (SchemeTypes)schemeType;
 
             Socket listenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            var ipe = new IPEndPoint(IPAddress.Any, schemePorts[SchemeTypes.conrequest]);
+            var ipe = new IPEndPoint(IPAddress.Any, schemePorts[type]);
             listenSocket.Bind(ipe);
-            log.Write("Started listening");
+            log.WriteLine("Started listening with port " + schemePorts[type]);
             log.Flush();
             while (true)
             {
@@ -119,16 +137,16 @@ namespace ConsoleEngine
                 log.WriteLine(uri.Scheme);
                 log.Flush();
                 DataManager(uri);
-               
+
             }
         }
-        void DataManager(Uri uri) 
+        void DataManager(Uri uri)
         {
             IPAddress ip = IPAddress.Parse(uri.Host);
-            
+
             if (uri.Scheme == "conrequest")
             {
-              if(EngineControl.gameManager.currentGameState != GameManager.GameState.ingame) 
+                if (EngineControl.gameManager.currentGameState != GameManager.GameState.ingame)
                 {
                     //send conaccept
                     SendConAccept(ip);
@@ -136,11 +154,18 @@ namespace ConsoleEngine
             }
             else if (uri.Scheme == "conaccept")
             {
+                bool ret = false;
+                foreach (var info in listOfGames)
+                {
+                    if (info.ip == IPAddress.Parse(uri.Host))
+                        ret=true;
+                }
+                if (ret) return;
                 listOfGames.Add(GetDataFromQuery(uri.OriginalString));
             }
             else if (uri.Scheme == "condata")
             {
-                if(ReceivedData.ContainsKey(ip))
+                if (ReceivedData.ContainsKey(ip))
                     ReceivedData.Remove(ip);
                 ReceivedData.Add(ip, GetDataFromQuery(uri.OriginalString));
             }
@@ -156,7 +181,7 @@ namespace ConsoleEngine
          .Select(g => g?.Address)
          .Where(a => a != null)
          .FirstOrDefault();
-            
+
             using Ping ping = new Ping();
             PingReply reply;
             try
@@ -193,14 +218,14 @@ namespace ConsoleEngine
             }
             return "";
         }
-        
+
         public void SearchGames()
         {
             if (HasConnection())
             {
                 //log.WriteLine("Getting Games");
                 //log.Flush();
-               // StreamWriter log = new StreamWriter("log1.txt");
+                // StreamWriter log = new StreamWriter("log1.txt");
 
 
                 //make it asych, display in option searching...
@@ -242,16 +267,16 @@ namespace ConsoleEngine
                 }
 
             }
-       
-        }     
+
+        }
         // got reply from conrequest
-        Info PingCompletedCallback(PingReply reply) 
+        Info PingCompletedCallback(PingReply reply)
         {
-            if(reply.Status == IPStatus.Success)
-                return(new Info { ip = reply.Address, username = "default", score=0,query=""});
+            if (reply.Status == IPStatus.Success)
+                return (new Info { ip = reply.Address, username = "default", score = 0, query = "" });
             return Info.Empty();
         }
-     
+
         public bool SendConRequest(IPAddress ip)
         {
             try
@@ -280,9 +305,30 @@ namespace ConsoleEngine
                 Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 IPEndPoint ipe = new IPEndPoint(ip, schemePorts[SchemeTypes.conaccept]);
                 socket.Bind(ipe);
-                socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conaccept, ip)));
+                socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conaccept, ip, $"?username={EngineControl.gameManager.Username}")));
                 //log.WriteLine("Sent Con req!");
                 //log.Flush();
+                socket.Close();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        public bool SendConData(Info info)
+        {
+            try
+            {
+                //log.WriteLine("Sending Con req with ip: " + ip.ToString());
+                //log.Flush();
+                Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                IPEndPoint ipe = new IPEndPoint(info.ip, schemePorts[SchemeTypes.condata]);
+                socket.Bind(ipe);
+                socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conaccept, info.ip, info.query)));
+                //log.WriteLine("Sent Con req!");
+                //log.Flush();
+                socket.Close();
                 return true;
             }
             catch

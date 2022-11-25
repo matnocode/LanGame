@@ -64,6 +64,8 @@ namespace ConsoleEngine
         public static string gamename = "LanNumberGuessr";
         private string _username = "";
 
+        LanNetwork.Info currentGame;
+
         bool opponentReveal;
         bool playerReveal;
 
@@ -185,7 +187,8 @@ namespace ConsoleEngine
             {
                 GeneratedNumber = "???";//3 decimals
                 currentOptionType = OptionType.ingame;
-
+                _opponentname = currentGame.username;
+                _opponentScore = currentGame.score;
                 //opponents values
                 string opponentVals = _opponentname + " : " + _opponentScore;
                 //slightly less than center
@@ -193,11 +196,11 @@ namespace ConsoleEngine
                 
                 //players values
                 string playerVals = Username + " : " + _playerScore;
-                Vector2 pPos = new Vector2(AlignAtCenter(playerVals, 0).x / 4, 3);
+                Vector2 pPos = new Vector2(AlignAtCenter(playerVals, 0).x / 4, 3);// x = screen width - (screen width /4)
 
                 //num to guess values
                 string numToGuessVals =  "Number to guess: "+GeneratedNumber ;
-                Vector2 ntgPos = new Vector2(AlignAtCenter(numToGuessVals, 0).x /4, 5);// x = screen width - (screen width /4)
+                Vector2 ntgPos = new Vector2(AlignAtCenter(numToGuessVals, 0).x, 5);
 
                 //offer values //move to options
                 string offer = $"Offer {_opponentname} to reveal a decimal place";
@@ -215,7 +218,7 @@ namespace ConsoleEngine
                 //robot on side
                 var sideArt = new GameObject(new FileStream("Assets/sideArt.cea", FileMode.Open, FileAccess.Read), "sideArt",new Vector2());
                 sideArt.Move(new Vector2(
-                    AlignAtCenter(sideArt.GetWidth(), 0).x + (AlignAtCenter(sideArt.GetWidth(), 0).x /2),
+                    AlignAtCenter(sideArt.GetWidth(), 0).x + (AlignAtCenter(sideArt.GetWidth(), 0).x /2 + 15),
                     1)) ;
 
                 //render
@@ -226,7 +229,8 @@ namespace ConsoleEngine
                 graphics.AddPoint(new Graphics.PointData(rPos, revealVal));
                 sideArt.RenderGameObject();;
 
-                //set up options
+                //set up options because option value changed
+                SetUpOptions();
                 SetUpOptionScreen(graphics.GetConsoleHeight() - 8,1);
             }
             else if (currentGameState == GameState.searchgame)
@@ -524,9 +528,11 @@ namespace ConsoleEngine
                         SetUpLevel();
                     }
                     //pressed enter for available game
-                    if( ctrlpos != 0 && ctrlpos < maxpos - 2) 
+                    if( ctrlpos != 0 && ctrlpos <= maxpos - 2) 
                     {
                         currentGameState = GameState.ingame;
+                        currentOptionType = OptionType.ingame;
+                        currentGame = EngineControl.lanNetwork.listOfGames[ctrlpos - 1];//-1 because first option is label, index because its rendered consecutively
                         SetUpLevel();
                     }
                 }
