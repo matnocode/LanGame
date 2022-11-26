@@ -226,7 +226,7 @@ namespace ConsoleEngine
                 if (currentGame.isEmpty()) 
                 {
                     var wfc = new GameObject(new FileStream("Assets/waitingForConnection.cea", FileMode.Open, FileAccess.Read), "wfc", new Vector2());
-                    wfc.Move(AlignAtCenter(wfc.GetWidth(), GetScreenCenter().y - wfc.GetHeight() / 2);
+                    wfc.Move(AlignAtCenter(wfc.GetWidth(), GetScreenCenter().y - wfc.GetHeight() / 2));
                     wfc.RenderGameObject();
 
                 }
