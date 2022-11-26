@@ -2,9 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Net.Sockets;
 using System.Text;
-using System.Threading.Tasks; 
 
 namespace ConsoleEngine
 {
@@ -15,13 +13,14 @@ namespace ConsoleEngine
         {
             _opponentname = "bot1";
             LoadUserName();
-            currentGameState = GameState.mainmenu;
+            currentGameState = GameState.selectInterface;
+            currentOptionType = OptionType.selectInterface;
             //Border = new Vector2(2, 1);//offsets
             SetUpLevel();
             EngineControl.engine.BeforeLoop += LevelLogic;
             controls.OnInputDetected += ControlManager;
             OnGameStateChange += SetUpLevel;
-        ;
+            ;
         }
         //create event delegate for setting levels
         public delegate void LevelDelegate();
@@ -32,7 +31,7 @@ namespace ConsoleEngine
         public enum GameState
         {
             mainmenu, loadingscreen0, pausemenu, ingame, loadingscreen1,
-            searchgame, createGame
+            searchgame, createGame, selectInterface
         }
         public enum GameType
         {
@@ -42,7 +41,7 @@ namespace ConsoleEngine
         public enum OptionType
         {
             mainmenu, inputTaker, searchGame, createGame,
-            ingame
+            ingame, selectInterface
         }
         Dictionary<OptionType, Option[]> options = new Dictionary<OptionType, Option[]>();
 
@@ -80,7 +79,9 @@ namespace ConsoleEngine
         DateTime Loading0ScreenStartTime = new DateTime();
         DateTime Loading1ScreenStartTime = new DateTime();
         private bool _sentRequest;
-        bool SentRequest { get => _sentRequest;  set
+        bool SentRequest
+        {
+            get => _sentRequest; set
             {
                 graphics.ClearWorld();
                 _sentRequest = value;
@@ -89,23 +90,24 @@ namespace ConsoleEngine
 
                 int nextPos = 0;
                 List<Option> tempOptArr = new List<Option>();
-              
+
 
                 tempOptArr.Add(new Option("Enter IP address for the game: (Press enter here)---> ", nextPos));
                 nextPos++;
                 tempOptArr.Add(new Option("Back", nextPos));
                 backOptionPos = nextPos;
                 nextPos++;
-                if (!_sentRequest)               
+                if (!_sentRequest)
                     tempOptArr.Add(new Option("No Game Found", nextPos));
-                
+
                 options.Add(OptionType.createGame, tempOptArr.ToArray());
-           
-            } }
+
+            }
+        }
 
         int _generatedNumber;//3 decimal places
         string GeneratedNumber;
-        
+
 
         GameObject map;
 
@@ -193,19 +195,19 @@ namespace ConsoleEngine
                 string opponentVals = _opponentname + " : " + _opponentScore;
                 //slightly less than center
                 Vector2 oPos = new Vector2(AlignAtCenter(opponentVals, 0).x / 4, 1);
-                
+
                 //players values
                 string playerVals = Username + " : " + _playerScore;
                 Vector2 pPos = new Vector2(AlignAtCenter(playerVals, 0).x / 4, 3);// x = screen width - (screen width /4)
 
                 //num to guess values
-                string numToGuessVals =  "Number to guess: "+GeneratedNumber ;
+                string numToGuessVals = "Number to guess: " + GeneratedNumber;
                 Vector2 ntgPos = new Vector2(AlignAtCenter(numToGuessVals, 0).x, 5);
 
                 //offer values //move to options
                 string offer = $"Offer {_opponentname} to reveal a decimal place";
                 Vector2 ofPos = new Vector2(AlignAtCenter(offer, 0).x / 4, 9);
-        
+
 
                 //reveal acceptions
                 string revealVal = $"{Username}---->[{GetRevealString(Username)}]    [{GetRevealString(Username)}]<----{_opponentname}";
@@ -213,13 +215,13 @@ namespace ConsoleEngine
 
                 //reveal acceptions
                 string revealAskVal = "Reveal Acceptions:";
-                Vector2 raPos = new Vector2((AlignAtCenter(offer, 0).x / 4) + revealVal.Length/4, graphics.GetConsoleHeight() - 3);
+                Vector2 raPos = new Vector2((AlignAtCenter(offer, 0).x / 4) + revealVal.Length / 4, graphics.GetConsoleHeight() - 3);
 
                 //robot on side
-                var sideArt = new GameObject(new FileStream("Assets/sideArt.cea", FileMode.Open, FileAccess.Read), "sideArt",new Vector2());
+                var sideArt = new GameObject(new FileStream("Assets/sideArt.cea", FileMode.Open, FileAccess.Read), "sideArt", new Vector2());
                 sideArt.Move(new Vector2(
-                    AlignAtCenter(sideArt.GetWidth(), 0).x + (AlignAtCenter(sideArt.GetWidth(), 0).x /2 + 15),
-                    1)) ;
+                    AlignAtCenter(sideArt.GetWidth(), 0).x + (AlignAtCenter(sideArt.GetWidth(), 0).x / 2 + 15),
+                    1));
 
                 //render
                 graphics.AddPoint(new Graphics.PointData(oPos, opponentVals));
@@ -227,11 +229,11 @@ namespace ConsoleEngine
                 graphics.AddPoint(new Graphics.PointData(ntgPos, numToGuessVals));
                 graphics.AddPoint(new Graphics.PointData(raPos, revealAskVal));
                 graphics.AddPoint(new Graphics.PointData(rPos, revealVal));
-                sideArt.RenderGameObject();;
+                sideArt.RenderGameObject(); ;
 
                 //set up options because option value changed
                 SetUpOptions();
-                SetUpOptionScreen(graphics.GetConsoleHeight() - 8,1);
+                SetUpOptionScreen(graphics.GetConsoleHeight() - 8, 1);
             }
             else if (currentGameState == GameState.searchgame)
             {
@@ -243,6 +245,11 @@ namespace ConsoleEngine
             else if (currentGameState == GameState.createGame)
             {
                 backOptionPos = 1;
+                SetUpOptionScreen(10, 2);
+            }
+            else if (currentGameState == GameState.selectInterface)
+            {
+                graphics.AddPoint(new Graphics.PointData(AlignAtCenter("Please select active network interface", 3), "Please select active network interface"));
                 SetUpOptionScreen(10, 2);
             }
         }
@@ -409,12 +416,23 @@ namespace ConsoleEngine
                     new Option("Back", 1)
            });
             options.Add(OptionType.ingame, new Option[]
-         {
+            {
                     new Option($"Offer {_opponentname} to reveal a decimal place", 0),
                     new Option("Enter Your Guess --->", 1),
                     new Option("EXIT", 2)
-         });
+            });
 
+            var interfaces = EngineControl.lanNetwork.GetListOfInterfaces();
+            Option[] opts = new Option[interfaces.Length + 1];
+            for (int i = 0; i < opts.Length; i++)
+            {
+                if (i == opts.Length - 1)
+                    opts[i] = new Option("Play offline", i);
+                else
+                    opts[i] = new Option(interfaces[i], i);
+
+            }
+            options.Add(OptionType.selectInterface, opts);
 
         }
 
@@ -456,11 +474,11 @@ namespace ConsoleEngine
             }
             if (currentGameState == GameState.ingame)
             {
-              
+
             }
-                
-            if (currentGameState == GameState.mainmenu)
-            {             
+
+            else if (currentGameState == GameState.mainmenu)
+            {
                 if (currentOptionType == OptionType.mainmenu)
                 {
                     if (key.Key == ConsoleKey.Enter)
@@ -477,7 +495,7 @@ namespace ConsoleEngine
                             //join game
                             if (ctrlpos == 0)
                             {
-                              
+
                                 currentGameState = GameState.searchgame;
                                 currentOptionType = OptionType.searchGame;
                                 SetUpLevel();
@@ -517,18 +535,18 @@ namespace ConsoleEngine
                     }
                 }
             }
-            else if (currentGameState == GameState.searchgame) 
-            {        
-                if(key.Key == ConsoleKey.Enter) 
+            else if (currentGameState == GameState.searchgame)
+            {
+                if (key.Key == ConsoleKey.Enter)
                 {
-                    if(ctrlpos == backOptionPos)
+                    if (ctrlpos == backOptionPos)
                     {
                         currentGameState = GameState.mainmenu;
                         currentOptionType = OptionType.mainmenu;
                         SetUpLevel();
                     }
                     //pressed enter for available game
-                    if( ctrlpos != 0 && ctrlpos <= maxpos - 2) 
+                    if (ctrlpos != 0 && ctrlpos <= maxpos - 2)
                     {
                         currentGameState = GameState.ingame;
                         currentOptionType = OptionType.ingame;
@@ -537,9 +555,9 @@ namespace ConsoleEngine
                     }
                 }
             }
-            else if (currentGameState == GameState.createGame) 
+            else if (currentGameState == GameState.createGame)
             {
-                if(currentOptionType == OptionType.inputTaker) 
+                if (currentOptionType == OptionType.inputTaker)
                 {
                     Console.SetCursorPosition(options[OptionType.createGame][0].worldPosition.x + options[OptionType.createGame][0].value.Length, options[OptionType.createGame][0].worldPosition.y);
                     string str = Console.ReadLine();
@@ -550,9 +568,9 @@ namespace ConsoleEngine
                         SentRequest = EngineControl.lanNetwork.SendConRequest(ip);
                     }
                     currentOptionType = OptionType.createGame;
-                    SetUpOptionScreen(10,2);
+                    SetUpOptionScreen(10, 2);
                 }
-                else 
+                else
                 {
                     if (key.Key == ConsoleKey.Enter)
                     {
@@ -569,35 +587,55 @@ namespace ConsoleEngine
 
                         }
                     }
-                }              
+                }
+            }
+            else if (currentGameState == GameState.selectInterface)
+            {
+                if (key.Key == ConsoleKey.Enter)
+                {
+                    if (ctrlpos >= 0 && ctrlpos != maxpos)
+                    {
+                        EngineControl.lanNetwork.SetInterface(ctrlpos);
+                        currentGameState = GameState.mainmenu;
+                        currentOptionType = OptionType.mainmenu;
+                        SetUpLevel();
+                    }
+                    else if (ctrlpos == maxpos)
+                    {
+                        EngineControl.lanNetwork.SetInterface(-1);
+                        currentGameState = GameState.mainmenu;
+                        currentOptionType = OptionType.mainmenu;
+                        SetUpLevel();
+                    }
+                }
             }
         }
 
         //game-------------------------
-    
+
         public void LoadUserName()
         {
             if (!File.Exists("Assets/username.txt"))
                 File.Create("Assets/username.txt");
             string a = File.ReadAllText("Assets/username.txt");
             _username = a;
-            
+
         }
         public void SaveUserName(string name)
-        {      
-            File.WriteAllText("Assets/username.txt",name);
+        {
+            File.WriteAllText("Assets/username.txt", name);
             Username = name;
         }
         public void GetAvailableGames()
         {
-            
+
             EngineControl.lanNetwork.SearchGames();
 
             //set up new option screen with list of available games
             //get list of games from server
             var gameList = EngineControl.lanNetwork.listOfGames;
 
-            if (gameList.Count > 0) 
+            if (gameList.Count > 0)
             {
                 graphics.ClearWorld();
                 if (options.ContainsKey(OptionType.searchGame) == true)
@@ -610,11 +648,11 @@ namespace ConsoleEngine
                 nextPos++;
 
 
-                for (int i = 0; i < gameList.Count;i++)
-                {                                    
-                    tempOptArr.Add(new Option($"{gameList[i].username} : {gameList[i].ip}", nextPos,new string[] {i.ToString()}));
+                for (int i = 0; i < gameList.Count; i++)
+                {
+                    tempOptArr.Add(new Option($"{gameList[i].username} : {gameList[i].ip}", nextPos, new string[] { i.ToString() }));
                     nextPos++;
-          
+
                 }
                 tempOptArr.Add(new Option("Try again", nextPos));
                 nextPos++;
@@ -636,10 +674,10 @@ namespace ConsoleEngine
                         new Option("Back",2)
                         });
                 backOptionPos = 2;
-                              
+
             }
         }
-        public void ChangeOptionSelection(int change ,ConsoleColor color)
+        public void ChangeOptionSelection(int change, ConsoleColor color)
         {
 
             //remove current selected, add again but without color
@@ -654,11 +692,11 @@ namespace ConsoleEngine
                 graphics.AddPoint(new Graphics.PointData(new Vector2(optarr[ctrlpos].worldPosition.x + i, optarr[ctrlpos].worldPosition.y), optarr[ctrlpos].value[i].ToString()));
             }
             //StreamWriter sw = new StreamWriter("log.txt");
-            
+
             for (int i = 0; i < optarr[ctrlpos + change].value.Length; i++)
             {
                 graphics.RemovePoint(new Vector2(optarr[ctrlpos + change].worldPosition.x + i, optarr[ctrlpos + change].worldPosition.y));
-                graphics.AddPoint(new Graphics.PointData(new Vector2(optarr[ctrlpos + change].worldPosition.x + i, optarr[ctrlpos + change].worldPosition.y), optarr[ctrlpos + change].value[i].ToString(),bc:ConsoleColor.Green));   
+                graphics.AddPoint(new Graphics.PointData(new Vector2(optarr[ctrlpos + change].worldPosition.x + i, optarr[ctrlpos + change].worldPosition.y), optarr[ctrlpos + change].value[i].ToString(), bc: ConsoleColor.Green));
                 //sw.Write("Added Point: value {0}, x:{1}, y:{2}, color:{3} \n", optarr[ctrlpos + change].value[i], optarr[ctrlpos + change].worldPosition.x + i, optarr[ctrlpos + change].worldPosition.y,color);
             }
             //sw.Write("\n--------------------------------------------------------------------------------" +
@@ -678,24 +716,24 @@ namespace ConsoleEngine
         }
 
         //decimal place reversed, from higher to lower: 3rd = 1 0 0<--
-        void Reveal(int decimalPlaceToReveal) 
+        void Reveal(int decimalPlaceToReveal)
         {
             //minus for indexes
             decimalPlaceToReveal--;
             char[] tempG = GeneratedNumber.ToCharArray();
             tempG[decimalPlaceToReveal] = _generatedNumber.ToString()[decimalPlaceToReveal];
             GeneratedNumber = tempG.ToString();
-           
+
         }
         string GetRevealString(string name)
         {
-            if(name == Username)
+            if (name == Username)
             {
                 if (playerReveal)
                     return "V";
                 return "X";
-            } 
-            else 
+            }
+            else
             {
                 if (opponentReveal)
                     return "V";
@@ -705,5 +743,5 @@ namespace ConsoleEngine
 
     }
 
-   
+
 }

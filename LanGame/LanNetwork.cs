@@ -16,7 +16,9 @@ namespace ConsoleEngine
         public delegate void GameListHandler();
         public event GameListHandler OnGameListChange;
         public event GameListHandler OnDataChange;
-        int getGamesId;
+        public static NetworkInterface networkInterface;
+        public static IPAddress networkDHCPAddress;
+        
 
         public LanNetwork()
         {
@@ -170,27 +172,16 @@ namespace ConsoleEngine
                 ReceivedData.Add(ip, GetDataFromQuery(uri.OriginalString));
             }
         }
-        //fix
         public static bool HasConnection()
         {
-            IPAddress dg = NetworkInterface
-         .GetAllNetworkInterfaces()
-         .Where(n => n.OperationalStatus == OperationalStatus.Up)
-         .Where(n => n.NetworkInterfaceType != NetworkInterfaceType.Loopback)
-         .SelectMany(n => n.GetIPProperties()?.GatewayAddresses)
-         .Select(g => g?.Address)
-         .Where(a => a != null)
-         .FirstOrDefault();
-
-            using Ping ping = new Ping();
-            PingReply reply;
-            try
+           //ping dg for connection
+            if(networkInterface != null) 
             {
-                reply = ping.Send(dg);
+                Ping ping = new Ping();
+                var reply = ping.Send(networkDHCPAddress);
+                if (reply.Status == IPStatus.Success)
+                    return true;
             }
-            catch { return false; }
-            if (reply.Status == IPStatus.Success)
-                return true;
             return false;
         }
         public static string GetUri(SchemeTypes scheme, IPAddress host, string query = "")
@@ -281,15 +272,19 @@ namespace ConsoleEngine
         {
             try
             {
-                //log.WriteLine("Sending Con req with ip: " + ip.ToString());
-                //log.Flush();
-                Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                IPEndPoint ipe = new IPEndPoint(ip, schemePorts[SchemeTypes.conrequest]);
-                socket.Bind(ipe);
-                socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conrequest, ip)));
-                //log.WriteLine("Sent Con req!");
-                //log.Flush();
-                return true;
+                if (HasConnection())
+                {
+                    //log.WriteLine("Sending Con req with ip: " + ip.ToString());
+                    //log.Flush();
+                    Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                    IPEndPoint ipe = new IPEndPoint(ip, schemePorts[SchemeTypes.conrequest]);
+                    socket.Bind(ipe);
+                    socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conrequest, ip)));
+                    //log.WriteLine("Sent Con req!");
+                    //log.Flush();
+                    return true;
+                }
+                return false;
             }
             catch
             {
@@ -300,16 +295,20 @@ namespace ConsoleEngine
         {
             try
             {
-                //log.WriteLine("Sending Con req with ip: " + ip.ToString());
-                //log.Flush();
-                Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                IPEndPoint ipe = new IPEndPoint(ip, schemePorts[SchemeTypes.conaccept]);
-                socket.Bind(ipe);
-                socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conaccept, ip, $"?username={EngineControl.gameManager.Username}")));
-                //log.WriteLine("Sent Con req!");
-                //log.Flush();
-                socket.Close();
-                return true;
+                if (HasConnection())
+                {
+                    //log.WriteLine("Sending Con req with ip: " + ip.ToString());
+                    //log.Flush();
+                    Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                    IPEndPoint ipe = new IPEndPoint(ip, schemePorts[SchemeTypes.conaccept]);
+                    socket.Bind(ipe);
+                    socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conaccept, ip, $"?username={EngineControl.gameManager.Username}")));
+                    //log.WriteLine("Sent Con req!");
+                    //log.Flush();
+                    socket.Close();
+                    return true;
+                }
+                return false;
             }
             catch
             {
@@ -320,22 +319,59 @@ namespace ConsoleEngine
         {
             try
             {
-                //log.WriteLine("Sending Con req with ip: " + ip.ToString());
-                //log.Flush();
-                Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                IPEndPoint ipe = new IPEndPoint(info.ip, schemePorts[SchemeTypes.condata]);
-                socket.Bind(ipe);
-                socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conaccept, info.ip, info.query)));
-                //log.WriteLine("Sent Con req!");
-                //log.Flush();
-                socket.Close();
-                return true;
+                if (HasConnection())
+                {
+                    //log.WriteLine("Sending Con req with ip: " + ip.ToString());
+                    //log.Flush();
+                    Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                    IPEndPoint ipe = new IPEndPoint(info.ip, schemePorts[SchemeTypes.condata]);
+                    socket.Bind(ipe);
+                    socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conaccept, info.ip, info.query)));
+                    //log.WriteLine("Sent Con req!");
+                    //log.Flush();
+                    socket.Close();
+                    return true;
+                }
+                return false;
             }
             catch
             {
                 return false;
             }
         }
+        public string[] GetListOfInterfaces()
+        {
+            NetworkInterface[] ifs = NetworkInterface.GetAllNetworkInterfaces();
+            List<string> arr = new List<string>();
+            for (int i = 0; i < ifs.Length; i++)
+            {
+                if(ifs[i].GetIPProperties().GatewayAddresses.Count >0)
+                    arr.Add( $"[{ifs[i].Name}] With Default Gateway: {ifs[i].GetIPProperties().GatewayAddresses[0].Address}");
+                
+            }
+            
+            return arr.ToArray();
+        }
+        public void SetInterface(int indexOfList) 
+        {
+            NetworkInterface[] ifs = NetworkInterface.GetAllNetworkInterfaces();
+            List<NetworkInterface> ifss = new List<NetworkInterface>();
+            for (int i = 0; i < ifs.Length; i++)
+            {
+                if (ifs[i].GetIPProperties().GatewayAddresses.Count > 0)
+                    ifss.Add(ifs[i]);
+
+            }
+            //if -1 then offline
+            if (indexOfList >= 0)
+            {
+                networkInterface = ifss[indexOfList];
+                networkDHCPAddress = ifss[indexOfList].GetIPProperties().GatewayAddresses[0].Address;
+            }
+            
+
+        }
 
     }
+    
 }
