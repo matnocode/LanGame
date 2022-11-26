@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
@@ -18,7 +17,7 @@ namespace ConsoleEngine
         public event GameListHandler OnDataChange;
         public static NetworkInterface networkInterface;
         public static IPAddress networkDHCPAddress;
-        
+
 
         public LanNetwork()
         {
@@ -101,11 +100,11 @@ namespace ConsoleEngine
 
             info.ip = IPAddress.Parse(uri.Host);
             info.query = uri.Query;
-            
+
             info.username = GetValueFromQuery(uri.Query, "username");
-            Int32.TryParse(GetValueFromQuery(uri.Query, "score"),out info.score);
-            Boolean.TryParse(GetValueFromQuery(uri.Query, "reveal"),out info.reveal);
-            
+            Int32.TryParse(GetValueFromQuery(uri.Query, "score"), out info.score);
+            Boolean.TryParse(GetValueFromQuery(uri.Query, "reveal"), out info.reveal);
+
 
             return info;
         }
@@ -160,7 +159,7 @@ namespace ConsoleEngine
                 foreach (var info in listOfGames)
                 {
                     if (info.ip == IPAddress.Parse(uri.Host))
-                        ret=true;
+                        ret = true;
                 }
                 if (ret) return;
                 listOfGames.Add(GetDataFromQuery(uri.OriginalString));
@@ -174,8 +173,8 @@ namespace ConsoleEngine
         }
         public static bool HasConnection()
         {
-           //ping dg for connection
-            if(networkInterface != null) 
+            //ping dg for connection
+            if (networkInterface != null)
             {
                 Ping ping = new Ping();
                 var reply = ping.Send(networkDHCPAddress);
@@ -221,19 +220,8 @@ namespace ConsoleEngine
 
                 //make it asych, display in option searching...
                 //ping all addresses in current network, if success, send conrequest, conrequest returns Info values in query form
-                IPAddress hostIp = null;
-                foreach (var ipInterface in NetworkInterface.GetAllNetworkInterfaces())
-                {
-                    if (ipInterface.OperationalStatus == OperationalStatus.Up)
-                    {
+                IPAddress hostIp = networkDHCPAddress; //host ip for correct network detection (can be any ip address in active network)
 
-                        foreach (var ip in ipInterface.GetIPProperties().DnsAddresses)
-                        {
-                            if (ip.AddressFamily == AddressFamily.InterNetwork)
-                                hostIp = ip;
-                        }
-                    }
-                }
                 int thirdDotPos = 0;//for knowing where to remove last digits and add new ones
 
                 List<Info> infos = new List<Info>();
@@ -345,14 +333,14 @@ namespace ConsoleEngine
             List<string> arr = new List<string>();
             for (int i = 0; i < ifs.Length; i++)
             {
-                if(ifs[i].GetIPProperties().GatewayAddresses.Count >0)
-                    arr.Add( $"[{ifs[i].Name}] With Default Gateway: {ifs[i].GetIPProperties().GatewayAddresses[0].Address}");
-                
+                if (ifs[i].GetIPProperties().GatewayAddresses.Count > 0)
+                    arr.Add($"[{ifs[i].Name}] With Default Gateway: {ifs[i].GetIPProperties().GatewayAddresses[0].Address}");
+
             }
-            
+
             return arr.ToArray();
         }
-        public void SetInterface(int indexOfList) 
+        public void SetInterface(int indexOfList)
         {
             NetworkInterface[] ifs = NetworkInterface.GetAllNetworkInterfaces();
             List<NetworkInterface> ifss = new List<NetworkInterface>();
@@ -368,10 +356,10 @@ namespace ConsoleEngine
                 networkInterface = ifss[indexOfList];
                 networkDHCPAddress = ifss[indexOfList].GetIPProperties().GatewayAddresses[0].Address;
             }
-            
+
 
         }
 
     }
-    
+
 }

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net;
 using System.Text;
 
 namespace ConsoleEngine
@@ -187,6 +186,7 @@ namespace ConsoleEngine
 
             else if (currentGameState == GameState.ingame)
             {
+                
                 GeneratedNumber = "???";//3 decimals
                 currentOptionType = OptionType.ingame;
                 _opponentname = currentGame.username;
@@ -223,6 +223,14 @@ namespace ConsoleEngine
                     AlignAtCenter(sideArt.GetWidth(), 0).x + (AlignAtCenter(sideArt.GetWidth(), 0).x / 2 + 15),
                     1));
 
+                if (currentGame.isEmpty()) 
+                {
+                    var wfc = new GameObject(new FileStream("Assets/waitingForConnection.cea", FileMode.Open, FileAccess.Read), "wfc", new Vector2());
+                    wfc.Move(AlignAtCenter(wfc.GetWidth(), GetScreenCenter().y - wfc.GetHeight() / 2);
+                    wfc.RenderGameObject();
+
+                }
+
                 //render
                 graphics.AddPoint(new Graphics.PointData(oPos, opponentVals));
                 graphics.AddPoint(new Graphics.PointData(pPos, playerVals));
@@ -244,8 +252,11 @@ namespace ConsoleEngine
             }
             else if (currentGameState == GameState.createGame)
             {
-                backOptionPos = 1;
-                SetUpOptionScreen(10, 2);
+                currentOptionType = OptionType.ingame;
+                currentGameState = GameState.ingame;
+                _opponentname = "";
+                opponentReveal = false;
+                SetUpLevel();
             }
             else if (currentGameState == GameState.selectInterface)
             {
@@ -545,8 +556,9 @@ namespace ConsoleEngine
                         currentOptionType = OptionType.mainmenu;
                         SetUpLevel();
                     }
+
                     //pressed enter for available game
-                    if (ctrlpos != 0 && ctrlpos <= maxpos - 2)
+                    else if (ctrlpos != 0 && ctrlpos <= maxpos - 2)
                     {
                         currentGameState = GameState.ingame;
                         currentOptionType = OptionType.ingame;
@@ -554,41 +566,13 @@ namespace ConsoleEngine
                         SetUpLevel();
                     }
                 }
+
             }
             else if (currentGameState == GameState.createGame)
             {
-                if (currentOptionType == OptionType.inputTaker)
-                {
-                    Console.SetCursorPosition(options[OptionType.createGame][0].worldPosition.x + options[OptionType.createGame][0].value.Length, options[OptionType.createGame][0].worldPosition.y);
-                    string str = Console.ReadLine();
-                    IPAddress ip;
-
-                    if (IPAddress.TryParse(str, out ip))
-                    {
-                        SentRequest = EngineControl.lanNetwork.SendConRequest(ip);
-                    }
-                    currentOptionType = OptionType.createGame;
-                    SetUpOptionScreen(10, 2);
-                }
-                else
-                {
-                    if (key.Key == ConsoleKey.Enter)
-                    {
-                        if (ctrlpos == backOptionPos)
-                        {
-                            currentGameState = GameState.mainmenu;
-                            currentOptionType = OptionType.mainmenu;
-                            SetUpLevel();
-                        }
-                        //enters ip address
-                        else if (ctrlpos == 0)
-                        {
-                            currentOptionType = OptionType.inputTaker;
-
-                        }
-                    }
-                }
+                //add game creation options later // like digits of number, time limit, guess limit
             }
+
             else if (currentGameState == GameState.selectInterface)
             {
                 if (key.Key == ConsoleKey.Enter)
@@ -608,140 +592,141 @@ namespace ConsoleEngine
                         SetUpLevel();
                     }
                 }
+            
             }
         }
 
-        //game-------------------------
+            //game-------------------------
 
-        public void LoadUserName()
-        {
-            if (!File.Exists("Assets/username.txt"))
-                File.Create("Assets/username.txt");
-            string a = File.ReadAllText("Assets/username.txt");
-            _username = a;
-
-        }
-        public void SaveUserName(string name)
-        {
-            File.WriteAllText("Assets/username.txt", name);
-            Username = name;
-        }
-        public void GetAvailableGames()
-        {
-
-            EngineControl.lanNetwork.SearchGames();
-
-            //set up new option screen with list of available games
-            //get list of games from server
-            var gameList = EngineControl.lanNetwork.listOfGames;
-
-            if (gameList.Count > 0)
+            public void LoadUserName()
             {
-                graphics.ClearWorld();
-                if (options.ContainsKey(OptionType.searchGame) == true)
-                { options.Remove(OptionType.searchGame); }
+                if (!File.Exists("Assets/username.txt"))
+                    File.Create("Assets/username.txt");
+                string a = File.ReadAllText("Assets/username.txt");
+                _username = a;
 
+            }
+            public void SaveUserName(string name)
+            {
+                File.WriteAllText("Assets/username.txt", name);
+                Username = name;
+            }
+            public void GetAvailableGames()
+            {
 
-                List<Option> tempOptArr = new List<Option>();
-                int nextPos = 0;
-                tempOptArr.Add(new Option("Games Found:", nextPos));
-                nextPos++;
+                EngineControl.lanNetwork.SearchGames();
 
+                //set up new option screen with list of available games
+                //get list of games from server
+                var gameList = EngineControl.lanNetwork.listOfGames;
 
-                for (int i = 0; i < gameList.Count; i++)
+                if (gameList.Count > 0)
                 {
-                    tempOptArr.Add(new Option($"{gameList[i].username} : {gameList[i].ip}", nextPos, new string[] { i.ToString() }));
+                    graphics.ClearWorld();
+                    if (options.ContainsKey(OptionType.searchGame) == true)
+                    { options.Remove(OptionType.searchGame); }
+
+
+                    List<Option> tempOptArr = new List<Option>();
+                    int nextPos = 0;
+                    tempOptArr.Add(new Option("Games Found:", nextPos));
                     nextPos++;
 
+
+                    for (int i = 0; i < gameList.Count; i++)
+                    {
+                        tempOptArr.Add(new Option($"{gameList[i].username} : {gameList[i].ip}", nextPos, new string[] { i.ToString() }));
+                        nextPos++;
+
+                    }
+                    tempOptArr.Add(new Option("Try again", nextPos));
+                    nextPos++;
+                    tempOptArr.Add(new Option("Back", nextPos));
+                    backOptionPos = nextPos;
+                    nextPos++;
+                    options.Add(OptionType.searchGame, tempOptArr.ToArray());
                 }
-                tempOptArr.Add(new Option("Try again", nextPos));
-                nextPos++;
-                tempOptArr.Add(new Option("Back", nextPos));
-                backOptionPos = nextPos;
-                nextPos++;
-                options.Add(OptionType.searchGame, tempOptArr.ToArray());
-            }
 
-            else
-            {
-                graphics.ClearWorld();
-                if (options.ContainsKey(OptionType.searchGame) == true)
-                { options.Remove(OptionType.searchGame); }
+                else
+                {
+                    graphics.ClearWorld();
+                    if (options.ContainsKey(OptionType.searchGame) == true)
+                    { options.Remove(OptionType.searchGame); }
 
-                options.Add(OptionType.searchGame, new Option[] {
+                    options.Add(OptionType.searchGame, new Option[] {
                         new Option("No Games Found",0),
                         new Option("Enter IP Manually",1),
                         new Option("Back",2)
                         });
-                backOptionPos = 2;
+                    backOptionPos = 2;
 
+                }
             }
-        }
-        public void ChangeOptionSelection(int change, ConsoleColor color)
-        {
-
-            //remove current selected, add again but without color
-            //remove next one, add again but with color
-
-            Option[] optarr = options[currentOptionType];
-
-            //remove current and add again to remove color
-            for (int i = 0; i < optarr[ctrlpos].value.Length; i++)
+            public void ChangeOptionSelection(int change, ConsoleColor color)
             {
-                graphics.RemovePoint(new Vector2(optarr[ctrlpos].worldPosition.x + i, optarr[ctrlpos].worldPosition.y));
-                graphics.AddPoint(new Graphics.PointData(new Vector2(optarr[ctrlpos].worldPosition.x + i, optarr[ctrlpos].worldPosition.y), optarr[ctrlpos].value[i].ToString()));
-            }
-            //StreamWriter sw = new StreamWriter("log.txt");
 
-            for (int i = 0; i < optarr[ctrlpos + change].value.Length; i++)
+                //remove current selected, add again but without color
+                //remove next one, add again but with color
+
+                Option[] optarr = options[currentOptionType];
+
+                //remove current and add again to remove color
+                for (int i = 0; i < optarr[ctrlpos].value.Length; i++)
+                {
+                    graphics.RemovePoint(new Vector2(optarr[ctrlpos].worldPosition.x + i, optarr[ctrlpos].worldPosition.y));
+                    graphics.AddPoint(new Graphics.PointData(new Vector2(optarr[ctrlpos].worldPosition.x + i, optarr[ctrlpos].worldPosition.y), optarr[ctrlpos].value[i].ToString()));
+                }
+                //StreamWriter sw = new StreamWriter("log.txt");
+
+                for (int i = 0; i < optarr[ctrlpos + change].value.Length; i++)
+                {
+                    graphics.RemovePoint(new Vector2(optarr[ctrlpos + change].worldPosition.x + i, optarr[ctrlpos + change].worldPosition.y));
+                    graphics.AddPoint(new Graphics.PointData(new Vector2(optarr[ctrlpos + change].worldPosition.x + i, optarr[ctrlpos + change].worldPosition.y), optarr[ctrlpos + change].value[i].ToString(), bc: ConsoleColor.Green));
+                    //sw.Write("Added Point: value {0}, x:{1}, y:{2}, color:{3} \n", optarr[ctrlpos + change].value[i], optarr[ctrlpos + change].worldPosition.x + i, optarr[ctrlpos + change].worldPosition.y,color);
+                }
+                //sw.Write("\n--------------------------------------------------------------------------------" +
+                //    "\n \n \n");
+                //sw.Flush();
+                //sw.Dispose();
+
+            }
+            public bool IsNumber(ConsoleKey key)
             {
-                graphics.RemovePoint(new Vector2(optarr[ctrlpos + change].worldPosition.x + i, optarr[ctrlpos + change].worldPosition.y));
-                graphics.AddPoint(new Graphics.PointData(new Vector2(optarr[ctrlpos + change].worldPosition.x + i, optarr[ctrlpos + change].worldPosition.y), optarr[ctrlpos + change].value[i].ToString(), bc: ConsoleColor.Green));
-                //sw.Write("Added Point: value {0}, x:{1}, y:{2}, color:{3} \n", optarr[ctrlpos + change].value[i], optarr[ctrlpos + change].worldPosition.x + i, optarr[ctrlpos + change].worldPosition.y,color);
+                if (key == ConsoleKey.D1 || key == ConsoleKey.D2 || key == ConsoleKey.D3 ||
+                    key == ConsoleKey.D4 || key == ConsoleKey.D5 || key == ConsoleKey.D6 ||
+                    key == ConsoleKey.D7 || key == ConsoleKey.D8 || key == ConsoleKey.D9 ||
+                    key == ConsoleKey.D0)
+                    return true;
+                return false;
             }
-            //sw.Write("\n--------------------------------------------------------------------------------" +
-            //    "\n \n \n");
-            //sw.Flush();
-            //sw.Dispose();
 
-        }
-        public bool IsNumber(ConsoleKey key)
-        {
-            if (key == ConsoleKey.D1 || key == ConsoleKey.D2 || key == ConsoleKey.D3 ||
-                key == ConsoleKey.D4 || key == ConsoleKey.D5 || key == ConsoleKey.D6 ||
-                key == ConsoleKey.D7 || key == ConsoleKey.D8 || key == ConsoleKey.D9 ||
-                key == ConsoleKey.D0)
-                return true;
-            return false;
-        }
-
-        //decimal place reversed, from higher to lower: 3rd = 1 0 0<--
-        void Reveal(int decimalPlaceToReveal)
-        {
-            //minus for indexes
-            decimalPlaceToReveal--;
-            char[] tempG = GeneratedNumber.ToCharArray();
-            tempG[decimalPlaceToReveal] = _generatedNumber.ToString()[decimalPlaceToReveal];
-            GeneratedNumber = tempG.ToString();
-
-        }
-        string GetRevealString(string name)
-        {
-            if (name == Username)
+            //decimal place reversed, from higher to lower: 3rd = 1 0 0<--
+            void Reveal(int decimalPlaceToReveal)
             {
-                if (playerReveal)
-                    return "V";
-                return "X";
+                //minus for indexes
+                decimalPlaceToReveal--;
+                char[] tempG = GeneratedNumber.ToCharArray();
+                tempG[decimalPlaceToReveal] = _generatedNumber.ToString()[decimalPlaceToReveal];
+                GeneratedNumber = tempG.ToString();
+
             }
-            else
+            string GetRevealString(string name)
             {
-                if (opponentReveal)
-                    return "V";
-                return "X";
+                if (name == Username)
+                {
+                    if (playerReveal)
+                        return "V";
+                    return "X";
+                }
+                else
+                {
+                    if (opponentReveal)
+                        return "V";
+                    return "X";
+                }
             }
+
         }
+
 
     }
-
-
-}
