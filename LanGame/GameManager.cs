@@ -249,15 +249,20 @@ namespace ConsoleEngine
             }
             else if (currentGameState == GameState.createGame)
             {
-
+               
                 if (currentGame.isEmpty())
                 {
                     if (wfc == null) wfc = new GameObject(new FileStream("Assets/waitingForConnection.cea", FileMode.Open, FileAccess.Read), "wfc", new Vector2());
                     wfc.Move(AlignAtCenter(wfc.GetWidth(), GetScreenCenter().y - wfc.GetHeight() / 2));
                     wfc.RenderGameObject();
+
                     string esc = "Press [Escape] to cancel";
                     Vector2 escPos = new Vector2(AlignAtCenter(esc, 0).x, graphics.GetConsoleHeight() - 1);
                     graphics.AddPoint(new Graphics.PointData(escPos, esc));
+
+                    string ip = $"Your Ip Address: {EngineControl.lanNetwork.GetIPAddress()}";
+                    Vector2 ipPos = new Vector2(AlignAtCenter(ip, 0).x, graphics.GetConsoleHeight() - 2);
+                    graphics.AddPoint(new Graphics.PointData(ipPos, ip));
 
                 }
             }
@@ -432,7 +437,8 @@ namespace ConsoleEngine
             });
             options.Add(OptionType.searchGame, new Option[]
             {
-                    new Option("Searching For Games...", 0)
+                    new Option("Searching For Games...", 0),
+                   
             });
             options.Add(OptionType.createGame, new Option[]
            {

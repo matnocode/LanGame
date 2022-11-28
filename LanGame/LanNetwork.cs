@@ -135,7 +135,7 @@ namespace ConsoleEngine
                 } while (receivedData > 0);
 
                 Uri uri = new Uri(sb.ToString());
-                log.WriteLine(uri.Scheme);
+                log.WriteLine($"{uri.Scheme}, port {schemePorts[type]}");
                 log.Flush();
                 DataManager(uri);
 
@@ -147,7 +147,7 @@ namespace ConsoleEngine
 
             if (uri.Scheme == "conrequest")
             {
-                if (EngineControl.gameManager.currentGameState != GameManager.GameState.ingame)
+                if (EngineControl.gameManager.currentGameState == GameManager.GameState.createGame  )
                 {
                     //send conaccept
                     SendConAccept(ip);
@@ -267,7 +267,7 @@ namespace ConsoleEngine
                     Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                     IPEndPoint ipe = new IPEndPoint(ip, schemePorts[SchemeTypes.conrequest]);
                     socket.Bind(ipe);
-                    socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conrequest, ip)));
+                    socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conrequest, ip,$"username={EngineControl.gameManager.Username}")));
                     //log.WriteLine("Sent Con req!");
                     //log.Flush();
                     return true;
@@ -290,9 +290,11 @@ namespace ConsoleEngine
                     Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                     IPEndPoint ipe = new IPEndPoint(ip, schemePorts[SchemeTypes.conaccept]);
                     socket.Bind(ipe);
-                    socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conaccept, ip, $"?username={EngineControl.gameManager.Username}")));
+                    socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conaccept, ip, $"username={EngineControl.gameManager.Username}")));
                     //log.WriteLine("Sent Con req!");
                     //log.Flush();
+                    log.WriteLine("Sent con accept");
+                    log.Flush();
                     socket.Close();
                     return true;
                 }
@@ -334,7 +336,7 @@ namespace ConsoleEngine
             for (int i = 0; i < ifs.Length; i++)
             {
                 if (ifs[i].GetIPProperties().GatewayAddresses.Count > 0)
-                    arr.Add($"[{ifs[i].Name}] With Default Gateway: {ifs[i].GetIPProperties().GatewayAddresses[0].Address}");
+                    arr.Add($"[{ifs[i].Name}] With Address Gateway: {ifs[i].GetIPProperties().GatewayAddresses[0].Address}");
 
             }
 
@@ -358,6 +360,15 @@ namespace ConsoleEngine
             }
 
 
+        }
+        public IPAddress GetIPAddress() 
+        {
+            foreach (var item in networkInterface.GetIPProperties().UnicastAddresses)
+            {
+                if (item.Address.AddressFamily == AddressFamily.InterNetwork)
+                    return item.Address;
+            }
+            return null;
         }
 
     }
