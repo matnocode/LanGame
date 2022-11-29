@@ -47,24 +47,29 @@ namespace ConsoleEngine
             {
                 return new Info() { empty = true };
             }
-            public Info(string uname, IPAddress ipp, int sc = 0, string que = "", bool rev = false)
+            public Info(string uname, IPAddress targetIP, IPAddress hostIP, int generated,int sc = 0, string que = "",bool rev = false)
             {
                 this.username = uname;
-                this.ip = ipp;
+                this.targetIP = targetIP;
+                this.host = hostIP;
                 this.score = sc;
                 this.query = que;
-                empty = false;
-                reveal = rev;
+                this.empty = false;
+                this.reveal = rev;
+                this.generatedNumber = generated; 
+
             }
             public bool isEmpty()
             {
                 return empty;
             }
             public string username;
-            public IPAddress ip;
+            public IPAddress targetIP;
             public int score;
             public string query;
+            public int generatedNumber;
             public bool reveal;
+            public IPAddress host;
             bool empty;
         }
 
@@ -98,7 +103,7 @@ namespace ConsoleEngine
 
             Info info = new Info();
 
-            info.ip = IPAddress.Parse(uri.Host);
+            info.targetIP = IPAddress.Parse(uri.Host);
             info.query = uri.Query;
 
             info.username = GetValueFromQuery(uri.Query, "username");
@@ -158,7 +163,7 @@ namespace ConsoleEngine
                 bool ret = false;
                 foreach (var info in listOfGames)
                 {
-                    if (info.ip == IPAddress.Parse(uri.Host))
+                    if (info.host == IPAddress.Parse(uri.Host))
                         ret = true;
                 }
                 if (ret) return;
@@ -168,7 +173,9 @@ namespace ConsoleEngine
             {
                 if (ReceivedData.ContainsKey(ip))
                     ReceivedData.Remove(ip);
-                ReceivedData.Add(ip, GetDataFromQuery(uri.OriginalString));
+                var info = GetDataFromQuery(uri.OriginalString);
+                EngineControl.gameManager.SetData(info);
+                ReceivedData.Add(ip, info);
             }
         }
         public static bool HasConnection()
@@ -252,7 +259,7 @@ namespace ConsoleEngine
         Info PingCompletedCallback(PingReply reply)
         {
             if (reply.Status == IPStatus.Success)
-                return (new Info { ip = reply.Address, username = "default", score = 0, query = "" });
+                return (new Info { targetIP = reply.Address, username = "default", score = 0, query = "" });
             return Info.Empty();
         }
 
@@ -314,9 +321,9 @@ namespace ConsoleEngine
                     //log.WriteLine("Sending Con req with ip: " + ip.ToString());
                     //log.Flush();
                     Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                    IPEndPoint ipe = new IPEndPoint(info.ip, schemePorts[SchemeTypes.condata]);
+                    IPEndPoint ipe = new IPEndPoint(info.targetIP, schemePorts[SchemeTypes.condata]);
                     socket.Bind(ipe);
-                    socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conaccept, info.ip, info.query)));
+                    socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conaccept, info.targetIP, info.query)));
                     //log.WriteLine("Sent Con req!");
                     //log.Flush();
                     socket.Close();
@@ -336,7 +343,7 @@ namespace ConsoleEngine
             for (int i = 0; i < ifs.Length; i++)
             {
                 if (ifs[i].GetIPProperties().GatewayAddresses.Count > 0)
-                    arr.Add($"[{ifs[i].Name}] With Address Gateway: {ifs[i].GetIPProperties().GatewayAddresses[0].Address}");
+                    arr.Add($"[{ifs[i].Name}] With Gateway Address: {ifs[i].GetIPProperties().GatewayAddresses[0].Address}");
 
             }
 

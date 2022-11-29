@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
+using System.Net.Mail;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace ConsoleEngine
 {
@@ -19,11 +22,13 @@ namespace ConsoleEngine
             EngineControl.engine.BeforeLoop += LevelLogic;
             controls.OnInputDetected += ControlManager;
             OnGameStateChange += SetUpLevel;
+            OnGameStateChange += SendData;
             currentGame = LanNetwork.Info.Empty();
         }
         //create event delegate for setting levels
         public delegate void LevelDelegate();
         public event LevelDelegate OnGameStateChange;
+        public event LevelDelegate OnDataChange;
 
         public static ConsoleColor defaultSelectionColor = ConsoleColor.DarkBlue;
 
@@ -55,17 +60,19 @@ namespace ConsoleEngine
         int mappos;
         int maxpos; // max pos of selections
 
-        private int _playerScore;
-        public int PlayerScore { get => _playerScore; set { _playerScore = value; SetUpUI(); } }
+        private int _playerScore ;
+        public int PlayerScore { get => _playerScore; set { _playerScore = value; OnDataChange?.Invoke(); } }
         private int _opponentScore;
-        public int OpponentScore { get => _opponentScore; set { _opponentScore = value; SetUpUI(); } }
+        public int OpponentScore { get => _opponentScore; set { _opponentScore = value; OnDataChange?.Invoke(); } }
         public static string gamename = "LanNumberGuessr";
         private string _username = "";
 
         LanNetwork.Info currentGame;
 
         bool opponentReveal;
-        bool playerReveal;
+        bool _playerReveal;
+        public bool PlayerReveal { get { return _playerReveal; } set {_playerReveal=value; OnDataChange?.Invoke(); } }
+
 
         public string Username { get => _username; set { _username = value; SetUpUI(); } }
         public string _opponentname;
@@ -107,6 +114,8 @@ namespace ConsoleEngine
 
         int _generatedNumber;//3 decimal places
         string GeneratedNumber;
+
+        int currentGuess;
 
 
         GameObject map;
@@ -188,8 +197,10 @@ namespace ConsoleEngine
             else if (currentGameState == GameState.ingame)
             {
 
-
-                GeneratedNumber = "???";//3 decimals
+                _generatedNumber = new Random().Next(100, 999);
+                GeneratedNumber = "???";
+                Reveal(1);
+                Reveal(2);
                 currentOptionType = OptionType.ingame;
                 _opponentname = currentGame.username;
                 _opponentScore = currentGame.score;
@@ -362,7 +373,8 @@ namespace ConsoleEngine
             }
             else if (currentGameState == GameState.ingame)
             {
-
+                if (currentGuess == _generatedNumber)
+                    _playerScore++;
             }
             else if (currentGameState == GameState.createGame)
             {
@@ -502,6 +514,7 @@ namespace ConsoleEngine
                     ctrlpos++;
                 }
             }
+           
             if (currentGameState == GameState.ingame)
             {
 
@@ -597,7 +610,6 @@ namespace ConsoleEngine
                     SetUpLevel();
                 }
             }
-
             else if (currentGameState == GameState.selectInterface)
             {
                 if (key.Key == ConsoleKey.Enter)
@@ -625,10 +637,15 @@ namespace ConsoleEngine
 
         public void LoadUserName()
         {
+            FileStream fs;
+
             if (!File.Exists("Assets/username.txt"))
-                File.Create("Assets/username.txt");
-            string a = File.ReadAllText("Assets/username.txt");
-            _username = a;
+            {
+                fs = File.Create("Assets/username.txt");
+                fs.Close();
+            }                
+         
+            _username = File.ReadAllText("Assets/username.txt");
 
         }
         public void SaveUserName(string name)
@@ -660,7 +677,7 @@ namespace ConsoleEngine
 
                 for (int i = 0; i < gameList.Count; i++)
                 {
-                    tempOptArr.Add(new Option($"{gameList[i].username} : {gameList[i].ip}", nextPos, new string[] { i.ToString() }));
+                    tempOptArr.Add(new Option($"{gameList[i].username} : {gameList[i].targetIP}", nextPos, new string[] { i.ToString() }));
                     nextPos++;
 
                 }
@@ -732,14 +749,18 @@ namespace ConsoleEngine
             decimalPlaceToReveal--;
             char[] tempG = GeneratedNumber.ToCharArray();
             tempG[decimalPlaceToReveal] = _generatedNumber.ToString()[decimalPlaceToReveal];
-            GeneratedNumber = tempG.ToString();
+            GeneratedNumber = "";
+            foreach(char c in tempG) 
+            {
+                GeneratedNumber += c.ToString();
+            }
 
         }
         string GetRevealString(string name)
         {
             if (name == Username)
             {
-                if (playerReveal)
+                if (_playerReveal)
                     return "V";
                 return "X";
             }
@@ -751,6 +772,25 @@ namespace ConsoleEngine
             }
         }
 
+        void SendData() 
+        {
+            if (currentGuess == _generatedNumber) 
+            {
+                //new game
+                PlayerReveal = false;
+                opponentReveal = false;
+                SetUpLevel();        
+            }
+
+            //EngineControl.lanNetwork.I
+            LanNetwork.Info info = new LanNetwork.Info(Username, currentGame.host, hostIP:EngineControl.lanNetwork.GetIPAddress(),_generatedNumber, PlayerScore, rev:_playerReveal);
+            EngineControl.lanNetwork.SendConData(info);
+
+        }
+        public void SetData(LanNetwork.Info info) 
+        {
+            currentGame = info; 
+        }
     }
 
 
