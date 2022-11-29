@@ -67,7 +67,7 @@ namespace ConsoleEngine
         public static string gamename = "LanNumberGuessr";
         private string _username = "";
 
-        LanNetwork.Info currentGame;
+        public LanNetwork.Info currentGame;
 
         bool opponentReveal;
         bool _playerReveal;
@@ -374,7 +374,16 @@ namespace ConsoleEngine
             else if (currentGameState == GameState.ingame)
             {
                 if (currentGuess == _generatedNumber)
+                {
+                    SendData();
+                    currentGuess = 0;
+                    _generatedNumber = 0;
+                    PlayerReveal = false;
+                    opponentReveal = false;
                     _playerScore++;
+
+                    SetUpLevel();
+                }
             }
             else if (currentGameState == GameState.createGame)
             {
@@ -517,7 +526,30 @@ namespace ConsoleEngine
            
             if (currentGameState == GameState.ingame)
             {
+                if (currentOptionType != OptionType.inputTaker)
+                {
+                    if (key.Key == ConsoleKey.Enter)
+                    {
+                        if (ctrlpos == 0) //offer to reveal
+                        {
 
+                        }
+                        if (ctrlpos == 1) //inputs num
+                        {
+                            currentOptionType = OptionType.inputTaker;
+                        }
+                        if (ctrlpos == 2) //exit
+                        {
+
+                        }
+                    }
+                }
+                else //take input
+                {
+                    string num = Console.ReadLine();
+                        if (GetNumber(num)>=0)
+                    currentGuess = GetNumber(num);  
+                }
             }
 
             else if (currentGameState == GameState.mainmenu)
@@ -732,14 +764,17 @@ namespace ConsoleEngine
             //sw.Dispose();
 
         }
-        public bool IsNumber(ConsoleKey key)
+        public int GetNumber(string num)
         {
-            if (key == ConsoleKey.D1 || key == ConsoleKey.D2 || key == ConsoleKey.D3 ||
-                key == ConsoleKey.D4 || key == ConsoleKey.D5 || key == ConsoleKey.D6 ||
-                key == ConsoleKey.D7 || key == ConsoleKey.D8 || key == ConsoleKey.D9 ||
-                key == ConsoleKey.D0)
-                return true;
-            return false;
+            try 
+            {
+                int n = Int32.Parse(num);
+                return n;   
+            }
+            catch 
+            {
+                return -1;
+            }
         }
 
         //decimal place reversed, from higher to lower: 3rd = 1 0 0<--
@@ -774,14 +809,6 @@ namespace ConsoleEngine
 
         void SendData() 
         {
-            if (currentGuess == _generatedNumber) 
-            {
-                //new game
-                PlayerReveal = false;
-                opponentReveal = false;
-                SetUpLevel();        
-            }
-
             //EngineControl.lanNetwork.I
             LanNetwork.Info info = new LanNetwork.Info(Username, currentGame.host, hostIP:EngineControl.lanNetwork.GetIPAddress(),_generatedNumber, PlayerScore, rev:_playerReveal);
             EngineControl.lanNetwork.SendConData(info);
