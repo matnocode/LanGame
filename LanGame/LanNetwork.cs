@@ -183,7 +183,7 @@ namespace ConsoleEngine
                 EngineControl.gameManager.SetData(info);
                 ReceivedData.Add(ip, info);
             }
-            else if (uri.Scheme == "condata") //in game data exchange
+            else if (uri.Scheme == "conack") 
             {
                 bool ret = false;
                 foreach (var info in listOfGames)
@@ -273,7 +273,7 @@ namespace ConsoleEngine
                     ip += i.ToString();
                     //log.Write(ip+"\n");
                     //log.Flush();
-                    SendConRequest(IPAddress.Parse(ip));
+                    SendConAck(IPAddress.Parse(ip));
 
                 }
 
