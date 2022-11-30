@@ -4,6 +4,7 @@ using System.IO;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading;
 
@@ -86,18 +87,28 @@ namespace ConsoleEngine
         //fix
         static string GetValueFromQuery(string query, string dataName)
         {
+            StreamWriter log = EngineControl.lanNetwork.log;
+            log.WriteLine();
+            log.WriteLine("----------------------Getting-Data-From-Query--------------------------");
+            log.WriteLine("Query: " + query);
+            log.WriteLine("Searcing for: " + dataName);
             if (query.Contains(dataName))
             {
                 string dataQuery = query.Substring(query.IndexOf(dataName));
                 if (dataQuery.Substring(dataQuery.IndexOf(dataName) + 1 + dataName.Length).Contains("&"))
                 {
                     //+1 because of =
-                    return dataQuery.Substring(dataQuery.IndexOf(dataName) + 1 + dataName.Length, dataQuery.IndexOf("&", dataQuery.IndexOf(dataName)));
+                    log.WriteLine("Got data: " + dataQuery.Substring(dataQuery.IndexOf(dataName) + 1 + dataName.Length, dataQuery.IndexOf("&", dataQuery.IndexOf(dataName) ) - dataName.Length-1));
+                    log.Flush();
+                    return dataQuery.Substring(dataQuery.IndexOf(dataName) + 1 + dataName.Length, dataQuery.IndexOf("&", dataQuery.IndexOf(dataName)) - dataName.Length - 1);
                 }
                 else
                 {
+                    log.WriteLine("Got data: " + dataQuery.Substring(dataQuery.IndexOf(dataName) + 1 + dataName.Length));
+                    log.Flush();
                     return dataQuery.Substring(dataQuery.IndexOf(dataName) + 1 + dataName.Length);
                 }
+               
             }
             return null;
         }
