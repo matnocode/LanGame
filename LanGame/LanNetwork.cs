@@ -194,7 +194,7 @@ namespace ConsoleEngine
                     if (info.host == IPAddress.Parse(uri.Host))
                     {
                         //same host sent again with different game state, remove from list
-                        if (info.currentGameState != GetDataFromQuery(uri.OriginalString).currentGameState)
+                        if (info.currentGameState != GetDataFromQuery(uri.OriginalString).currentGameState || info.username != GetDataFromQuery(uri.OriginalString).username)
                         {
                             listOfGames.Remove(info);
                         }
@@ -314,7 +314,7 @@ namespace ConsoleEngine
                     Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                     IPEndPoint ipe = new IPEndPoint(ip, schemePorts[SchemeTypes.conrequest]);
                     socket.Bind(ipe);
-                    socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conrequest, ip, $"username={EngineControl.gameManager.Username}")));
+                    socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conrequest, ip)));
                     //log.WriteLine("Sent Con req!");
                     //log.Flush();
                     return true;
@@ -383,7 +383,7 @@ namespace ConsoleEngine
                     Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                     IPEndPoint ipe = new IPEndPoint(ip, schemePorts[SchemeTypes.conack]);
                     socket.Bind(ipe);
-                    socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conack, ip,$"currentgamestate={(int)EngineControl.gameManager.currentGameState}")));
+                    socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conack, ip,$"username=${EngineControl.gameManager.Username}&currentgamestate={(int)EngineControl.gameManager.currentGameState}")));
                     //log.WriteLine("Sent Con req!");
                     //log.Flush();
                     socket.Close();

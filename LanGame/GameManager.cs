@@ -624,10 +624,14 @@ namespace ConsoleEngine
                     //pressed enter for available game
                     else if (ctrlpos != 0 && ctrlpos <= maxpos - 2)
                     {
-                        currentGameState = GameState.ingame;
-                        currentOptionType = OptionType.ingame;
-                        currentGame = EngineControl.lanNetwork.listOfGames[ctrlpos - 1];//-1 because first option is label, index because its rendered consecutively
-                        SetUpLevel();
+                        if (EngineControl.lanNetwork.SendConAccept(EngineControl.lanNetwork.listOfGames[ctrlpos - 1].host))
+                        {
+                            //means succesfully sent con accept
+                            currentGameState = GameState.ingame;
+                            currentOptionType = OptionType.ingame;                          
+                            currentGame = EngineControl.lanNetwork.listOfGames[ctrlpos - 1];//-1 because first option is label, index because its rendered consecutively
+                            SetUpLevel();
+                        }
                     }
                 }
 
