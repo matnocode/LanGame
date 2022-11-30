@@ -50,7 +50,7 @@ namespace ConsoleEngine
             {
                 return new Info() { empty = true };
             }
-            public Info(string uname, IPAddress targetIP, IPAddress hostIP, int generated, int sc = 0, string que = "", bool rev = false)
+            public Info(string uname, IPAddress targetIP, IPAddress hostIP, int generated, int gameState, int sc = 0, string que = "", bool rev = false)
             {
                 this.username = uname;
                 this.targetIP = targetIP;
@@ -60,6 +60,7 @@ namespace ConsoleEngine
                 this.empty = false;
                 this.reveal = rev;
                 this.generatedNumber = generated;
+                this.currentGameState = gameState;
 
             }
             public bool isEmpty()
@@ -74,6 +75,7 @@ namespace ConsoleEngine
             public bool reveal;
             public IPAddress host;
             bool empty;
+            public int currentGameState;
         }
 
         public List<Info> listOfGames;
@@ -112,7 +114,7 @@ namespace ConsoleEngine
             info.username = GetValueFromQuery(uri.Query, "username");
             Int32.TryParse(GetValueFromQuery(uri.Query, "score"), out info.score);
             Boolean.TryParse(GetValueFromQuery(uri.Query, "reveal"), out info.reveal);
-
+            Int32.TryParse(GetValueFromQuery(uri.Query, "currentgamestate"), out info.currentGameState);
 
             return info;
         }
@@ -185,15 +187,28 @@ namespace ConsoleEngine
             }
             else if (uri.Scheme == "conack") 
             {
+                //if in create game state, add to list, otherwise do nothing
                 bool ret = false;
                 foreach (var info in listOfGames)
                 {
                     if (info.host == IPAddress.Parse(uri.Host))
-                        ret = true;
+                    {
+                        //same host sent again with different game state, remove from list
+                        if (info.currentGameState != GetDataFromQuery(uri.OriginalString).currentGameState)
+                        {
+                            listOfGames.Remove(info);
+                        }
+                        else
+                            ret = true;//to not add it again
+                    }
                 }
-                if (ret) //if already in list then exit
+                if (ret) //if already in list then exit, to not add it again if con ack sent again
                     return;
-                listOfGames.Add(GetDataFromQuery(uri.OriginalString));
+                
+                if (GetDataFromQuery(uri.OriginalString).currentGameState == (int)GameManager.GameState.createGame)
+                    listOfGames.Add(GetDataFromQuery(uri.OriginalString));
+
+
             }
         }
         public static bool HasConnection()
@@ -368,7 +383,7 @@ namespace ConsoleEngine
                     Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                     IPEndPoint ipe = new IPEndPoint(ip, schemePorts[SchemeTypes.conack]);
                     socket.Bind(ipe);
-                    socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conack, ip)));
+                    socket.Send(ASCIIEncoding.ASCII.GetBytes(GetUri(SchemeTypes.conack, ip,$"currentgamestate={(int)EngineControl.gameManager.currentGameState}")));
                     //log.WriteLine("Sent Con req!");
                     //log.Flush();
                     socket.Close();

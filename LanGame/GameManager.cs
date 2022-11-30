@@ -34,8 +34,8 @@ namespace ConsoleEngine
 
         public enum GameState
         {
-            mainmenu, loadingscreen0, pausemenu, ingame, loadingscreen1,
-            searchgame, createGame, selectInterface
+            mainmenu = 0, loadingscreen0 = 1, pausemenu = 2, ingame = 3, loadingscreen1 = 4 ,
+            searchgame = 5, createGame = 6, selectInterface = 7
         }
         public enum GameType
         {
@@ -809,8 +809,8 @@ namespace ConsoleEngine
 
         void SendData() 
         {
-            //EngineControl.lanNetwork.I
-            LanNetwork.Info info = new LanNetwork.Info(Username, currentGame.host, hostIP:EngineControl.lanNetwork.GetIPAddress(),_generatedNumber, PlayerScore, rev:_playerReveal);
+            //EngineControl.lanNetwork.Ii
+            LanNetwork.Info info = new LanNetwork.Info(Username, currentGame.host, hostIP:EngineControl.lanNetwork.GetIPAddress(),_generatedNumber, (int)currentGameState,PlayerScore, rev:_playerReveal);
             EngineControl.lanNetwork.SendConData(info);
 
         }
@@ -818,6 +818,7 @@ namespace ConsoleEngine
         {
             currentGame = info; 
         }
+
     }
 
 
