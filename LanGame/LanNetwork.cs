@@ -273,7 +273,7 @@ namespace ConsoleEngine
                     ip += i.ToString();
                     //log.Write(ip+"\n");
                     //log.Flush();
-                    SendConAck(IPAddress.Parse(ip));
+                    SendConRequest(IPAddress.Parse(ip));
 
                 }
 
