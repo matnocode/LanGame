@@ -167,12 +167,9 @@ namespace ConsoleEngine
             IPAddress ip = IPAddress.Parse(uri.Host);
 
             if (uri.Scheme == "conrequest") //acknowledge the message
-            {
-                if (EngineControl.gameManager.currentGameState == GameManager.GameState.createGame)
-                {
+            {         
                     //send conack
-                    SendConAck(ip);
-                }
+                   SendConAck(ip);               
             }
             else if (uri.Scheme == "conaccept") //accepts game invitation
             {
